@@ -1,14 +1,39 @@
 import Head from 'next/head';
-import { useTranslation } from 'next-i18next';
-import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import { useTranslation, serverSideTranslations } from 'next-i18next';
 import type { GetStaticProps } from 'next';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import nextI18NextConfig from '../../next-i18next.config.js';
 
-export const getStaticProps: GetStaticProps = async ({ locale }) => ({
-  props: {
-    ...(await serverSideTranslations(locale ?? 'fr', ['common'])),
-  },
-});
+export const getStaticProps: GetStaticProps = async ({ locale }) => {
+  // 1. On charge le module global
+  const nextI18nextModule = require('next-i18next');
+  
+  // 2. Sécurité d'extraction : on cherche dans .default (ESM) ou à la racine (CommonJS)
+  const serverSideTranslations = 
+    nextI18nextModule.serverSideTranslations || 
+    nextI18nextModule.default?.serverSideTranslations;
+
+  if (!serverSideTranslations) {
+    throw new Error("Impossible de charger serverSideTranslations depuis next-i18next");
+  }
+
+  // 3. On charge la configuration
+  const nextI18NextConfig = require('../../next-i18next.config.js');
+  const currentLocale = (locale || 'fr') as string;
+
+  // 4. Exécution sûre
+  const translations = await serverSideTranslations(
+    currentLocale,
+    ['common'],
+    nextI18NextConfig
+  );
+
+  return {
+    props: {
+      ...translations,
+    },
+  };
+};
 
 export default function Home() {
   const { t } = useTranslation('common');
