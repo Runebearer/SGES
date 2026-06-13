@@ -1,6 +1,18 @@
 import Head from 'next/head';
+import { useTranslation } from 'next-i18next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import type { GetStaticProps } from 'next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+
+export const getStaticProps: GetStaticProps = async ({ locale }) => ({
+  props: {
+    ...(await serverSideTranslations(locale ?? 'fr', ['common'])),
+  },
+});
 
 export default function Home() {
+  const { t } = useTranslation('common');
+
   return (
     <>
       <Head>
@@ -19,12 +31,13 @@ export default function Home() {
         </div>
         <nav>
           <ul>
-            <li><a href="#" className="active">Terminal</a></li>
-            <li><a href="#features">Fonctionnalités</a></li>
-            <li><a href="#stack">Architecture</a></li>
-            <li><a href="#join">Rejoindre</a></li>
+            <li><a href="#" className="active">{t('nav.terminal')}</a></li>
+            <li><a href="#features">{t('nav.features')}</a></li>
+            <li><a href="#stack">{t('nav.architecture')}</a></li>
+            <li><a href="#join">{t('nav.join')}</a></li>
           </ul>
         </nav>
+        <LanguageSwitcher />
       </header>
 
       {/* ===== HERO ===== */}
@@ -69,59 +82,43 @@ export default function Home() {
           <span className="accent">E</span>xploration{' '}
           <span className="accent">S</span>patiale
         </h1>
-        <p>
-          [Placeholder] Une phrase d&apos;accroche décrivant la mission de votre
-          extension de sourcing : automatiser la collecte, l&apos;analyse et le
-          suivi de produits directement depuis votre navigateur.
-        </p>
-        <a href="#join" className="btn">Initialiser la Séquence</a>
+        <p>{t('hero.subtitle')}</p>
+        <a href="#join" className="btn">{t('hero.cta')}</a>
       </section>
 
       {/* ===== MAIN / FEATURES ===== */}
       <main className="main-container">
         <div id="features" className="grid-features">
           <div className="panel">
-            <h3>Extraction en Temps Réel</h3>
-            <p>
-              [Placeholder] Décrivez ici comment l&apos;extension scanne les pages
-              produits et extrait automatiquement les données pertinentes
-              (prix, marges, fournisseurs, disponibilité).
-            </p>
+            <h3>{t('features.extraction.title')}</h3>
+            <p>{t('features.extraction.description')}</p>
           </div>
 
           <div className="panel">
-            <h3>Tableau de Bord Centralisé</h3>
-            <p>
-              [Placeholder] Présentez le site web comme le centre de contrôle
-              où les utilisateurs retrouvent, trient et organisent les
-              produits sourcés depuis l&apos;extension.
-            </p>
+            <h3>{t('features.dashboard.title')}</h3>
+            <p>{t('features.dashboard.description')}</p>
           </div>
 
           <div className="panel">
-            <h3>Synchronisation Sécurisée</h3>
-            <p>
-              [Placeholder] Expliquez l&apos;authentification et la
-              synchronisation des données entre l&apos;extension Chrome et
-              l&apos;application web via votre backend.
-            </p>
+            <h3>{t('features.sync.title')}</h3>
+            <p>{t('features.sync.description')}</p>
           </div>
         </div>
 
         {/* ===== STATUS BAR / HUD ===== */}
         <div className="hud-status">
-          <div>[ MODULE SOURCING : ACTIF ]</div>
+          <div>{t('hud.module')}</div>
           <div>
-            STATUT SYSTÈME :{' '}
-            <span style={{ color: '#4ade80' }}>OPÉRATIONNEL</span>
+            {t('hud.status_label')}{' '}
+            <span style={{ color: '#4ade80' }}>{t('hud.status_value')}</span>
           </div>
-          <div className="hud-blink">● SYNCHRONISATION ÉTABLIE</div>
+          <div className="hud-blink">{t('hud.sync')}</div>
         </div>
       </main>
 
       {/* ===== FOOTER ===== */}
       <footer id="join">
-        &copy; 2026 Votre Projet — Console de Sourcing. Tous droits réservés.
+        {t('footer.copyright')}
       </footer>
 
       <style jsx global>{`
