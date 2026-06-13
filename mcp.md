@@ -1,19 +1,32 @@
 mon-projet-root/
-├── package.json               # Configuration globale (workspaces)
-├── README.md                  # Documentation générale
+├── packages/
+│   └── i18n/                          # NOUVEAU : package partagé
+│       ├── package.json
+│       ├── index.ts                   # export des ressources pour l'extension
+│       └── locales/
+│           ├── fr/
+│           │   ├── common.json        # textes du site web
+│           │   └── extension.json     # textes de l'extension
+│           └── en/
+│               ├── common.json
+│               └── extension.json
+│
 ├── apps/
-│   ├── extension/             # SOURCING EXTENSION CHROME
-│   │   ├── manifest.json      # Configuration (Manifest v3 obligatoire)
-│   │   ├── src/
-│   │   │   ├── popup/         # Code de l'Overlay (Menus, redirection si logout)
-│   │   │   ├── content/       # Code du Content Script (Là où l'action se passe)
-│   │   │   └── firebase.ts    # Initialisation Firebase locale
-│   │   └── vite.config.ts
+│   ├── site/
+│   │   ├── next-i18next.config.js     # NOUVEAU
+│   │   ├── next.config.js             # MODIFIÉ (ajout i18n)
+│   │   ├── scripts/
+│   │   │   └── sync-locales.js        # NOUVEAU
+│   │   └── src/
+│   │       ├── pages/
+│   │       │   ├── _app.tsx           # MODIFIÉ (appWithTranslation)
+│   │       │   └── index.tsx          # MODIFIÉ (useTranslation + t())
+│   │       └── components/
+│   │           └── LanguageSwitcher.tsx  # NOUVEAU
 │   │
-│   └── site-web/              # SOURCING APPLICATION WEB (Vercel)
-│       ├── src/
-│       │   ├── pages/
-│       │   │   ├── index.ts   # Page de présentation
-│       │   │   └── login.ts   # Page de connexion Firebase
-│       │   └── firebase.ts    # Initialisation Firebase Web
-│       └── next.config.js
+│   └── extension/
+│       └── src/
+│           ├── i18n/
+│           │   └── index.ts           # NOUVEAU : init i18next
+│           └── popup/
+│               └── Popup.tsx          # MODIFIÉ (exemple d'utilisation)

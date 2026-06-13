@@ -1,0 +1,38 @@
+# ===== Dépendances =====
+node_modules/
+**/node_modules/
+
+# ===== Next.js (apps/site-web) =====
+apps/site-web/.next/
+apps/site-web/out/
+apps/site-web/public/locales/   # généré par scripts/sync-locales.js
+
+# ===== Build extension (apps/extension) =====
+apps/extension/dist/
+apps/extension/build/
+
+# ===== Variables d'environnement =====
+.env
+.env.local
+.env.*.local
+
+# ===== Logs =====
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# ===== Editeurs / OS =====
+.DS_Store
+.vscode/
+.idea/
+
+# ===== TypeScript =====
+*.tsbuildinfo
+
+# ===== Firebase =====
+.firebase/
+firebase-debug.log
+
+# ===== docs =====
+translate.md
