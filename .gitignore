@@ -2,7 +2,9 @@
 node_modules/
 **/node_modules/
 
-# ===== Next.js (apps/site-web) =====
+# ===== Next.js (Global & Local) =====
+.next/
+**/.next/
 apps/site-web/.next/
 apps/site-web/out/
 apps/site-web/public/locales/   # généré par scripts/sync-locales.js
