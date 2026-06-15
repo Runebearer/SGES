@@ -41,12 +41,35 @@
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Signing in...",
+    "no_account": "No account yet?",
+    "signup_link": "Create an account",
     "errors": {
       "default": "Sign-in failed. Please try again.",
       "auth/invalid-email": "Invalid email address.",
       "auth/invalid-credential": "Incorrect email or password.",
       "auth/user-not-found": "Incorrect email or password.",
       "auth/wrong-password": "Incorrect email or password.",
+      "auth/too-many-requests": "Too many attempts. Try again later."
+    }
+  },
+  "signup": {
+    "title": "Sign up",
+    "subtitle": "// Operator enrollment — create new access",
+    "hud_module": "MODULE: ENROLL",
+    "hud_secure": "Encrypted channel",
+    "email": "Email address",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "submit": "Create account",
+    "submitting": "Creating...",
+    "have_account": "Already have an account?",
+    "login_link": "Sign in",
+    "errors": {
+      "default": "Account creation failed. Please try again.",
+      "password_mismatch": "Passwords do not match.",
+      "auth/invalid-email": "Invalid email address.",
+      "auth/email-already-in-use": "This email address is already in use.",
+      "auth/weak-password": "Password must be at least 6 characters.",
       "auth/too-many-requests": "Too many attempts. Try again later."
     }
   }

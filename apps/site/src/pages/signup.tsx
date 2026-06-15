@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -17,13 +17,14 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
   },
 });
 
-export default function Login() {
+export default function SignUp() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,13 +38,19 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (password !== confirm) {
+      setError(t('signup.errors.password_mismatch'));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
       router.replace('/');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : 'unknown';
-      setError(t(`login.errors.${code}`, { defaultValue: t('login.errors.default') }));
+      setError(t(`signup.errors.${code}`, { defaultValue: t('signup.errors.default') }));
     } finally {
       setSubmitting(false);
     }
@@ -52,7 +59,7 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>SGES — {t('login.title')}</title>
+        <title>SGES — {t('signup.title')}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link
           href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&display=swap"
@@ -61,20 +68,20 @@ export default function Login() {
       </Head>
 
       <AuthTerminal
-        hudModule={t('login.hud_module')}
-        hudSecure={t('login.hud_secure')}
-        title={t('login.title')}
-        subtitle={t('login.subtitle')}
-        submitLabel={submitting ? t('login.submitting') : t('login.submit')}
+        hudModule={t('signup.hud_module')}
+        hudSecure={t('signup.hud_secure')}
+        title={t('signup.title')}
+        subtitle={t('signup.subtitle')}
+        submitLabel={submitting ? t('signup.submitting') : t('signup.submit')}
         submitting={submitting}
         error={error}
         onSubmit={handleSubmit}
-        footerText={t('login.no_account')}
-        footerLinkLabel={t('login.signup_link')}
-        footerHref="/signup"
+        footerText={t('signup.have_account')}
+        footerLinkLabel={t('signup.login_link')}
+        footerHref="/login"
       >
         <label className="field">
-          <span className="field-label">{t('login.email')}</span>
+          <span className="field-label">{t('signup.email')}</span>
           <input
             type="email"
             placeholder="operator@sges.io"
@@ -86,14 +93,28 @@ export default function Login() {
         </label>
 
         <label className="field">
-          <span className="field-label">{t('login.password')}</span>
+          <span className="field-label">{t('signup.password')}</span>
           <input
             type="password"
             placeholder="••••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            autoComplete="current-password"
+            autoComplete="new-password"
+            minLength={6}
+          />
+        </label>
+
+        <label className="field">
+          <span className="field-label">{t('signup.confirm')}</span>
+          <input
+            type="password"
+            placeholder="••••••••••"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            autoComplete="new-password"
+            minLength={6}
           />
         </label>
       </AuthTerminal>

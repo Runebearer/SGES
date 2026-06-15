@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
@@ -38,7 +39,7 @@ export default function Home() {
             <li><a href="#" className="active">{t('nav.terminal')}</a></li>
             <li><a href="#features">{t('nav.features')}</a></li>
             <li><a href="#stack">{t('nav.architecture')}</a></li>
-            <li><a href="#join">{t('nav.join')}</a></li>
+            <li><Link href="/login">{t('nav.join')}</Link></li>
           </ul>
         </nav>
         <LanguageSwitcher />
@@ -56,7 +57,7 @@ export default function Home() {
         <div className="gate">
           <StargateRing />
           <div className="gate-cta">
-            <a href="#join" className="btn">{t('hero.cta')}</a>
+            <Link href="/login" className="btn">{t('hero.cta')}</Link>
           </div>
         </div>
       </section>
@@ -172,7 +173,7 @@ export default function Home() {
         }
 
         nav a {
-          color: var(--deep-blue);
+          color: var(--cyan);
           text-decoration: none;
           text-transform: uppercase;
           font-size: 0.9rem;
@@ -242,32 +243,61 @@ export default function Home() {
           font-size: 1.1rem;
           max-width: 650px;
           margin-bottom: 40px;
-          color: var(--deep-blue);
+          color: var(--cyan);
           font-weight: 500;
           line-height: 1.6;
         }
 
-        /* ---- BUTTON ---- */
+        /* ---- BUTTON (style terminal, identique aux pages auth) ---- */
         .btn {
+          position: relative;
           display: inline-block;
-          padding: 15px 40px;
+          padding: 15px 45px;
           text-decoration: none;
           text-transform: uppercase;
-          font-weight: bold;
-          letter-spacing: 2px;
-          transition: all 0.3s;
+          font-family: 'Allerta Stencil', sans-serif;
+          letter-spacing: 3px;
+          font-size: 1.05rem;
+          overflow: hidden;
           clip-path: polygon(15px 0%, 100% 0%, calc(100% - 15px) 100%, 0% 100%);
           background: var(--deep-blue);
           color: #fff;
-          border: none;
-          box-shadow: 0 0 15px rgba(30, 58, 138, 0.5);
+          border: 1px solid var(--cyan);
+          box-shadow: 0 0 16px rgba(30, 58, 138, 0.5);
+          transition: all 0.25s;
         }
 
         .btn:hover {
-          background: #fff;
-          color: #000;
-          box-shadow: 0 0 25px rgba(255, 255, 255, 0.7);
-          transform: translateY(-3px);
+          background: var(--cyan);
+          color: #030712;
+          box-shadow: 0 0 26px rgba(0, 210, 255, 0.7);
+        }
+
+        .btn::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -60%;
+          width: 40%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.35),
+            transparent
+          );
+          transform: skewX(-20deg);
+          animation: btn-shine 3.5s ease-in-out infinite;
+        }
+
+        @keyframes btn-shine {
+          0%,
+          70% {
+            left: -60%;
+          }
+          100% {
+            left: 130%;
+          }
         }
 
         /* ---- MAIN / PANELS ---- */
@@ -315,7 +345,7 @@ export default function Home() {
         }
 
         .panel h3 {
-          color: var(--deep-blue);
+          color: var(--cyan);
           text-transform: uppercase;
           letter-spacing: 2px;
           margin-bottom: 18px;

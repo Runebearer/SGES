@@ -41,12 +41,35 @@
     "password": "Mot de passe",
     "submit": "Se connecter",
     "submitting": "Connexion...",
+    "no_account": "Pas encore de compte ?",
+    "signup_link": "Créer un compte",
     "errors": {
       "default": "Échec de la connexion. Veuillez réessayer.",
       "auth/invalid-email": "Adresse e-mail invalide.",
       "auth/invalid-credential": "E-mail ou mot de passe incorrect.",
       "auth/user-not-found": "E-mail ou mot de passe incorrect.",
       "auth/wrong-password": "E-mail ou mot de passe incorrect.",
+      "auth/too-many-requests": "Trop de tentatives. Réessayez plus tard."
+    }
+  },
+  "signup": {
+    "title": "Inscription",
+    "subtitle": "// Enrôlement opérateur — création d'un nouvel accès",
+    "hud_module": "MODULE : ENROLL",
+    "hud_secure": "Canal chiffré",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "confirm": "Confirmer le mot de passe",
+    "submit": "Créer le compte",
+    "submitting": "Création...",
+    "have_account": "Déjà un compte ?",
+    "login_link": "Se connecter",
+    "errors": {
+      "default": "Échec de la création du compte. Veuillez réessayer.",
+      "password_mismatch": "Les mots de passe ne correspondent pas.",
+      "auth/invalid-email": "Adresse e-mail invalide.",
+      "auth/email-already-in-use": "Cette adresse e-mail est déjà utilisée.",
+      "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
       "auth/too-many-requests": "Trop de tentatives. Réessayez plus tard."
     }
   }
