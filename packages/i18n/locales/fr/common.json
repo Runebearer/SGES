@@ -31,5 +31,23 @@
   },
   "footer": {
     "copyright": "© 2026 Stargate F : Exploration Spatiale. Tous droits réservés."
+  },
+  "login": {
+    "title": "Connexion",
+    "subtitle": "// Accès au terminal de mission — identifiants requis",
+    "hud_module": "MODULE : AUTH",
+    "hud_secure": "Liaison sécurisée",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "submitting": "Connexion...",
+    "errors": {
+      "default": "Échec de la connexion. Veuillez réessayer.",
+      "auth/invalid-email": "Adresse e-mail invalide.",
+      "auth/invalid-credential": "E-mail ou mot de passe incorrect.",
+      "auth/user-not-found": "E-mail ou mot de passe incorrect.",
+      "auth/wrong-password": "E-mail ou mot de passe incorrect.",
+      "auth/too-many-requests": "Trop de tentatives. Réessayez plus tard."
+    }
   }
 }
