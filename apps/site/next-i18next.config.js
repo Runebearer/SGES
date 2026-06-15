@@ -1,9 +1,9 @@
-const { i18n } = require('./next-i18next.config.js');
-
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  i18n, // <-- Next.js partage ainsi la config nativement avec serverSideTranslations
+/** @type {import('next-i18next').UserConfig} */
+const config = {
+  i18n: {
+    defaultLocale: 'fr',
+    locales: ['fr', 'en'],
+  },
 };
 
-module.exports = nextConfig;
+module.exports = config;

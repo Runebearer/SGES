@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { resources, defaultLanguage, supportedLanguages, SupportedLanguage } from '@mon-projet/i18n';
+import { resources, defaultLanguage, supportedLanguages, SupportedLanguage } from '@sges/i18n';
 
 // Détecte la langue préférée du navigateur (gérée par Chrome),
 // avec repli sur le français si la langue n'est pas supportée.

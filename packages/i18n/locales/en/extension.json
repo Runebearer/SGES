@@ -1,0 +1,9 @@
+{
+  "popup": {
+    "title": "SGES — Explorer",
+    "scan_button": "Scan page"
+  },
+  "language_switcher": {
+    "label": "Language"
+  }
+}

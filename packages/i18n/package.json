@@ -4,6 +4,6 @@
   "private": true,
   "main": "index.ts",
   "dependencies": {
-    "i18next": "^23.0.0"
+    "i18next": "^26.3.1"
   }
 }

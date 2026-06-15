@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import './i18n'; // initialise i18next au chargement du popup
-import { supportedLanguages } from '@mon-projet/i18n';
+import '../i18n'; // initialise i18next au chargement du popup
+import { supportedLanguages } from '@sges/i18n';
 
 export default function Popup() {
   const { t, i18n } = useTranslation('extension');

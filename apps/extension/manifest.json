@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "SGES — Stargate Exploration",
+  "version": "1.0.0",
+  "description": "Extension SGES : extraction et synchronisation des données de mission.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SGES"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}

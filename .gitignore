@@ -5,9 +5,9 @@ node_modules/
 # ===== Next.js (Global & Local) =====
 .next/
 **/.next/
-apps/site-web/.next/
-apps/site-web/out/
-apps/site-web/public/locales/   # généré par scripts/sync-locales.js
+apps/site/out/
+# Généré par scripts/sync-locales.js
+apps/site/public/locales/
 
 # ===== Build extension (apps/extension) =====
 apps/extension/dist/

@@ -1,1 +1,35 @@
-{}
+{
+  "nav": {
+    "terminal": "Terminal",
+    "features": "Features",
+    "architecture": "Architecture",
+    "join": "Join"
+  },
+  "hero": {
+    "subtitle": "Space exploration platform: extract, analyze and synchronize your mission data across the galaxy.",
+    "cta": "Launch mission"
+  },
+  "features": {
+    "extraction": {
+      "title": "Extraction",
+      "description": "Automatically collect data from any source in the fleet."
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Monitor your missions in real time from a unified cockpit."
+    },
+    "sync": {
+      "title": "Synchronization",
+      "description": "Keep all your stations in sync, wherever they are in the universe."
+    }
+  },
+  "hud": {
+    "module": "MODULE: SGF-ES",
+    "status_label": "STATUS:",
+    "status_value": "ONLINE",
+    "sync": "SYNCING..."
+  },
+  "footer": {
+    "copyright": "© 2026 Stargate F: Space Exploration. All rights reserved."
+  }
+}

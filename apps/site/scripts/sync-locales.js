@@ -1,4 +1,4 @@
-// Copie les traductions du package partagé @mon-projet/i18n
+// Copie les traductions du package partagé @sges/i18n
 // vers apps/site/public/locales, où next-i18next va les chercher.
 //
 // À lancer avant `next dev` / `next build` (voir scripts "predev"/"prebuild"
