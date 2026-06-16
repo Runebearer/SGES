@@ -5,6 +5,7 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import StargateRing from '../components/StargateRing';
+import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
 
 export const getStaticProps: GetStaticProps = async ({ locale }) => {
@@ -17,6 +18,7 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => {
 
 export default function Home() {
   const { t } = useTranslation('common');
+  const { user, authLevel, signOut } = useAuth();
 
   return (
     <>
@@ -39,10 +41,20 @@ export default function Home() {
             <li><a href="#" className="active">{t('nav.terminal')}</a></li>
             <li><a href="#features">{t('nav.features')}</a></li>
             <li><a href="#stack">{t('nav.architecture')}</a></li>
-            <li><Link href="/login">{t('nav.join')}</Link></li>
+            {!user && <li><Link href="/login">{t('nav.join')}</Link></li>}
           </ul>
         </nav>
+        {user && authLevel != null && (
+          <span className="clearance-badge">
+            {t('account.clearance', { level: authLevel })}
+          </span>
+        )}
         <LanguageSwitcher />
+        {user && (
+          <button type="button" className="logout-btn" onClick={() => signOut()}>
+            {t('account.logout')}
+          </button>
+        )}
       </header>
 
       {/* ===== HERO ===== */}
@@ -79,6 +91,14 @@ export default function Home() {
             <h3>{t('features.sync.title')}</h3>
             <p>{t('features.sync.description')}</p>
           </div>
+
+          {/* Panneau réservé : visible uniquement à partir du niveau 3. */}
+          {authLevel != null && authLevel >= 3 && (
+            <div className="panel panel-classified">
+              <h3>{t('account.classified.title')}</h3>
+              <p>{t('account.classified.description')}</p>
+            </div>
+          )}
         </div>
 
         {/* ===== STATUS BAR / HUD ===== */}
@@ -164,6 +184,47 @@ export default function Home() {
         .logo span {
           color: var(--violet);
           text-shadow: 0 0 10px var(--violet);
+        }
+
+        /* ---- BADGE HABILITATION + DÉCONNEXION ---- */
+        .clearance-badge {
+          font-family: monospace;
+          font-size: 0.8rem;
+          letter-spacing: 2px;
+          color: var(--violet);
+          border: 1px solid rgba(168, 85, 247, 0.4);
+          padding: 6px 12px;
+          text-transform: uppercase;
+          white-space: nowrap;
+          box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+        }
+
+        .logout-btn {
+          font-family: 'Segoe UI', Roboto, sans-serif;
+          font-size: 0.8rem;
+          font-weight: bold;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--cyan);
+          background: transparent;
+          border: 1px solid var(--deep-blue);
+          padding: 6px 14px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+          background: var(--cyan);
+          color: #030712;
+          box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+        }
+
+        .panel-classified {
+          border-left-color: var(--violet);
+        }
+
+        .panel-classified h3 {
+          color: var(--violet);
         }
 
         nav ul {

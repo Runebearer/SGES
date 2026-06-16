@@ -32,6 +32,14 @@
   "footer": {
     "copyright": "© 2026 Stargate F : Exploration Spatiale. Tous droits réservés."
   },
+  "account": {
+    "clearance": "HABILITATION NIV. {{level}}",
+    "logout": "Déconnexion",
+    "classified": {
+      "title": "Dossier classifié",
+      "description": "Coordonnées de saut et journaux de mission réservés au commandement. Habilitation niveau 3 requise."
+    }
+  },
   "login": {
     "title": "Connexion",
     "subtitle": "// Accès au terminal de mission — identifiants requis",

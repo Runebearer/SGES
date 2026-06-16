@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Règles de sécurité Firestore pour SGES.
+// Déploiement : firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Profils opérateurs : users/{uid}
+    match /users/{uid} {
+
+      // Un utilisateur ne lit que son propre profil.
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Création à l'inscription : seulement par le titulaire du compte, et le
+      // niveau d'habilitation initial est forcé à 1. Empêche un nouvel inscrit
+      // de se créer directement un niveau élevé.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.authLevel == 1
+        && request.resource.data.email == request.auth.token.email;
+
+      // Mise à jour par le titulaire, MAIS authLevel ne peut pas changer côté
+      // client. Les promotions de niveau se font côté serveur (Admin SDK), qui
+      // contourne ces règles.
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.authLevel == resource.data.authLevel;
+
+      // Pas de suppression de profil côté client.
+      allow delete: if false;
+    }
+  }
+}

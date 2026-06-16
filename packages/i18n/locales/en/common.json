@@ -32,6 +32,14 @@
   "footer": {
     "copyright": "© 2026 Stargate F: Space Exploration. All rights reserved."
   },
+  "account": {
+    "clearance": "CLEARANCE LVL {{level}}",
+    "logout": "Sign out",
+    "classified": {
+      "title": "Classified file",
+      "description": "Jump coordinates and mission logs restricted to command. Clearance level 3 required."
+    }
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "// Mission terminal access — credentials required",

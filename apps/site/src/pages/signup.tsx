@@ -6,8 +6,10 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import { auth } from '../firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { DEFAULT_AUTH_LEVEL } from '../lib/authLevels';
 import AuthTerminal from '../components/AuthTerminal';
 import nextI18NextConfig from '../../next-i18next.config.js';
 
@@ -46,7 +48,13 @@ export default function SignUp() {
 
     setSubmitting(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
+      // Crée le profil opérateur avec son niveau d'habilitation initial.
+      await setDoc(doc(db, 'users', newUser.uid), {
+        email: newUser.email,
+        authLevel: DEFAULT_AUTH_LEVEL,
+        createdAt: serverTimestamp(),
+      });
       router.replace('/');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : 'unknown';
