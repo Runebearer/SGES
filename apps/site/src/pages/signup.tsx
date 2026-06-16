@@ -57,6 +57,9 @@ export default function SignUp() {
       });
       router.replace('/');
     } catch (err) {
+      // Log explicite : sans ça, l'erreur (ex. échec d'écriture Firestore) est
+      // masquée par la redirection automatique post-connexion.
+      console.error('Signup failed:', err);
       const code = err instanceof FirebaseError ? err.code : 'unknown';
       setError(t(`signup.errors.${code}`, { defaultValue: t('signup.errors.default') }));
     } finally {
