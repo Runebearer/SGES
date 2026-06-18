@@ -52,7 +52,8 @@
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
       "missions": "Missions",
-      "alert": "Alerte"
+      "alert": "Alerte",
+      "rewards": "Récompenses"
     },
     "sections": {
       "dashboard": {
@@ -84,6 +85,11 @@
         "title": "Alerte",
         "subtitle": "// Flux d'incidents prioritaires",
         "empty": "Aucune alerte critique. Tous les systèmes sont nominaux."
+      },
+      "rewards": {
+        "title": "Récompenses",
+        "subtitle": "// Distinctions et récompenses débloquées",
+        "empty": "Aucune récompense débloquée pour le moment."
       }
     }
   },

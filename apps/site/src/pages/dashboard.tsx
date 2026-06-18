@@ -14,7 +14,7 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
   },
 });
 
-type SectionId = 'dashboard' | 'sgcf' | 'missions' | 'alert';
+type SectionId = 'dashboard' | 'sgcf' | 'missions' | 'alert' | 'rewards';
 
 // Glyphes SVG du menu (trait fin, style HUD).
 const ICONS: Record<SectionId, JSX.Element> = {
@@ -28,20 +28,29 @@ const ICONS: Record<SectionId, JSX.Element> = {
   ),
   sgcf: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="4" />
+      <path d="M5 3h11l3 3v15H5z" />
+      <path d="M9 9h7M9 13h7M9 17h4" />
     </svg>
   ),
   missions: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M5 3h11l3 3v15H5z" />
-      <path d="M9 9h7M9 13h7M9 17h4" />
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" />
     </svg>
   ),
   alert: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 3l9 16H3z" />
       <path d="M12 10v4M12 17v.5" />
+    </svg>
+  ),
+  rewards: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" />
+      <path d="M7 6H4v1a3 3 0 0 0 3 3" />
+      <path d="M17 6h3v1a3 3 0 0 1-3 3" />
+      <path d="M12 13v3" />
+      <path d="M8.5 20h7l-1-3h-5z" />
     </svg>
   ),
 };
@@ -152,6 +161,20 @@ export default function Dashboard() {
               </button>
             ))}
           </nav>
+
+          {/* Récompenses : entrée de navigation placée juste au-dessus du
+              bloc habilitation. */}
+          <button
+            type="button"
+            className={`nav-item nav-item-bare${active === 'rewards' ? ' active' : ''}`}
+            onClick={() => setActive('rewards')}
+            aria-current={active === 'rewards' ? 'page' : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              {ICONS.rewards}
+            </span>
+            <span className="nav-label">{t('dashboard.nav.rewards')}</span>
+          </button>
 
           <div className="sidebar-footer">
             {authLevel != null && (
@@ -272,6 +295,12 @@ export default function Dashboard() {
             {active === 'alert' && (
               <div className="panel panel-empty">
                 <p>{t('dashboard.sections.alert.empty')}</p>
+              </div>
+            )}
+
+            {active === 'rewards' && (
+              <div className="panel">
+                <p>{t('dashboard.sections.rewards.empty')}</p>
               </div>
             )}
           </section>
@@ -473,6 +502,16 @@ export default function Dashboard() {
           color: #f87171;
           opacity: 1;
           filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
+        }
+
+        /* « Récompenses » sans cadre (ni bordure, ni fond, ni ombre). */
+        .dashboard-screen .nav-item-bare,
+        .dashboard-screen .nav-item-bare:hover,
+        .dashboard-screen .nav-item-bare.active {
+          border-color: transparent;
+          border-left-color: transparent;
+          background: transparent;
+          box-shadow: none;
         }
 
         .dashboard-screen .nav-badge {

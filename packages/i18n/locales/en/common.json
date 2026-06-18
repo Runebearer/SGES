@@ -52,7 +52,8 @@
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
       "missions": "Missions",
-      "alert": "Alert"
+      "alert": "Alert",
+      "rewards": "Rewards"
     },
     "sections": {
       "dashboard": {
@@ -84,6 +85,11 @@
         "title": "Alert",
         "subtitle": "// Priority incident feed",
         "empty": "No critical alerts. All systems nominal."
+      },
+      "rewards": {
+        "title": "Rewards",
+        "subtitle": "// Unlocked honors and rewards",
+        "empty": "No rewards unlocked yet."
       }
     }
   },
