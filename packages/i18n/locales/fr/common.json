@@ -44,6 +44,10 @@
     "page_title": "Tableau de bord",
     "hud_module": "MODULE : SGC-F",
     "hud_status": "Systèmes nominaux",
+    "xp": {
+      "label": "Expérience",
+      "level": "Niv. {{level}}"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
@@ -54,11 +58,10 @@
       "dashboard": {
         "title": "Tableau de bord",
         "subtitle": "// Cockpit opérationnel — vue d'ensemble des systèmes",
-        "stats": {
-          "missions": "Missions actives",
-          "energy": "Énergie disponible",
-          "alerts": "Alertes ouvertes",
-          "sync": "Stations synchronisées"
+        "energy": { "title": "Niveau d'énergie" },
+        "cards": {
+          "electricity": "Électricité stockée",
+          "artifacts": "Artefacts"
         }
       },
       "sgcf": {

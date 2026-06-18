@@ -44,6 +44,10 @@
     "page_title": "Dashboard",
     "hud_module": "MODULE: SGC-F",
     "hud_status": "Systems nominal",
+    "xp": {
+      "label": "Experience",
+      "level": "Lvl {{level}}"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
@@ -54,11 +58,10 @@
       "dashboard": {
         "title": "Dashboard",
         "subtitle": "// Operational cockpit — systems overview",
-        "stats": {
-          "missions": "Active missions",
-          "energy": "Available energy",
-          "alerts": "Open alerts",
-          "sync": "Synced stations"
+        "energy": { "title": "Energy level" },
+        "cards": {
+          "electricity": "Stored electricity",
+          "artifacts": "Artifacts"
         }
       },
       "sgcf": {

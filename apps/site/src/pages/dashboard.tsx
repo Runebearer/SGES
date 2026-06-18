@@ -46,12 +46,51 @@ const ICONS: Record<SectionId, JSX.Element> = {
   ),
 };
 
+// Barre de niveau d'énergie : se remplit selon `value` (0–100). La valeur
+// réelle sera fournie plus tard (fonction en cours de développement) ; `null`
+// affiche un état « en attente ».
+function EnergyBar({ label, value }: { label: string; value: number | null }) {
+  const pct = value == null ? 0 : Math.max(0, Math.min(100, value));
+  return (
+    <div className="energy">
+      <div className="energy-head">
+        <span className="energy-label">{label}</span>
+        <span className="energy-value">{value == null ? '—' : `${pct}%`}</span>
+      </div>
+      <div
+        className="energy-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={value ?? undefined}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className="energy-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user, authLevel, loading, signOut } = useAuth();
 
   const [active, setActive] = useState<SectionId>('dashboard');
+
+  // Présence d'une alerte transmise. Grisée tant que false ; passe en couleur
+  // dès qu'une alerte arrive. TODO: brancher sur le flux d'alertes (à venir).
+  const hasAlert = false;
+
+  // Niveau d'énergie (0–100). Valeur réelle à brancher plus tard (fonction en
+  // cours de développement) ; null = en attente de données.
+  const energyLevel: number | null = 72;
+
+  // Progression d'expérience vers le niveau suivant (0–100). Le niveau affiché
+  // est celui du compte (authLevel) ; le remplissage suivra les points
+  // d'expérience gagnés. TODO: brancher sur les points d'XP (à venir).
+  const xp: number | null = 45;
+  const xpPct = xp == null ? 0 : Math.max(0, Math.min(100, xp));
 
   // Route réservée : renvoie vers le login si non authentifié.
   useEffect(() => {
@@ -65,7 +104,7 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title>SGES — {t('dashboard.page_title')}</title>
+        <title>{`SGES — ${t('dashboard.page_title')}`}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link
           href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&display=swap"
@@ -88,7 +127,18 @@ export default function Dashboard() {
               <button
                 key={id}
                 type="button"
-                className={`nav-item${active === id ? ' active' : ''}`}
+                className={[
+                  'nav-item',
+                  active === id ? 'active' : '',
+                  // « Alerte » reste grisée tant qu'aucune alerte n'est transmise.
+                  id === 'alert' && !hasAlert ? 'nav-item-muted' : '',
+                  id === 'alert' && hasAlert ? 'nav-item-alert' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                // La navigation vers « Alerte » n'est ouverte que si une alerte
+                // est en cours ; sinon l'entrée est désactivée.
+                disabled={id === 'alert' && !hasAlert}
                 onClick={() => setActive(id)}
                 aria-current={active === id ? 'page' : undefined}
               >
@@ -96,16 +146,38 @@ export default function Dashboard() {
                   {ICONS[id]}
                 </span>
                 <span className="nav-label">{t(`dashboard.nav.${id}`)}</span>
-                {id === 'alert' && <i className="nav-badge" aria-hidden="true" />}
+                {id === 'alert' && hasAlert && (
+                  <i className="nav-badge" aria-hidden="true" />
+                )}
               </button>
             ))}
           </nav>
 
           <div className="sidebar-footer">
             {authLevel != null && (
-              <span className="clearance">
-                {t('account.clearance', { level: authLevel })}
-              </span>
+              <>
+                {/* Habilitation + jauge d'expérience : niveau = niveau du
+                    compte, remplissage selon les points d'expérience (à venir). */}
+                <div className="clearance">
+                  {t('account.clearance', { level: authLevel })}
+                  <div className="xp">
+                    <div
+                      className="xp-track"
+                      role="progressbar"
+                      aria-label={t('dashboard.xp.label')}
+                      aria-valuenow={xp ?? undefined}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div className="xp-fill" style={{ width: `${xpPct}%` }} />
+                    </div>
+                    <div className="xp-levels">
+                      <span>{t('dashboard.xp.level', { level: authLevel })}</span>
+                      <span>{t('dashboard.xp.level', { level: authLevel + 1 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
             <button type="button" className="logout" onClick={() => signOut()}>
               {t('account.logout')}
@@ -135,22 +207,27 @@ export default function Dashboard() {
             </p>
 
             {active === 'dashboard' && (
-              <div className="stats-grid">
-                <div className="stat">
-                  <span className="stat-value">07</span>
-                  <span className="stat-label">{t('dashboard.sections.dashboard.stats.missions')}</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-value">82%</span>
-                  <span className="stat-label">{t('dashboard.sections.dashboard.stats.energy')}</span>
-                </div>
-                <div className="stat stat-warn">
-                  <span className="stat-value">03</span>
-                  <span className="stat-label">{t('dashboard.sections.dashboard.stats.alerts')}</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-value">12</span>
-                  <span className="stat-label">{t('dashboard.sections.dashboard.stats.sync')}</span>
+              <div className="overview">
+                <EnergyBar
+                  label={t('dashboard.sections.dashboard.energy.title')}
+                  value={energyLevel}
+                />
+
+                <div className="cards-grid">
+                  <div className="stat">
+                    {/* Valeur réelle à venir. */}
+                    <span className="stat-value">—</span>
+                    <span className="stat-label">
+                      {t('dashboard.sections.dashboard.cards.electricity')}
+                    </span>
+                  </div>
+                  <div className="stat">
+                    {/* Valeur réelle à venir. */}
+                    <span className="stat-value">—</span>
+                    <span className="stat-label">
+                      {t('dashboard.sections.dashboard.cards.artifacts')}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -371,6 +448,33 @@ export default function Dashboard() {
           filter: drop-shadow(0 0 6px var(--electric-bright));
         }
 
+        /* « Alerte » grisée et non cliquable tant qu'aucune alerte n'est en cours. */
+        .dashboard-screen .nav-item-muted,
+        .dashboard-screen .nav-item-muted:hover {
+          color: rgba(209, 225, 248, 0.38);
+          cursor: not-allowed;
+          border-color: transparent;
+          border-left-color: transparent;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .dashboard-screen .nav-item-muted .nav-icon {
+          color: rgba(209, 225, 248, 0.38);
+          opacity: 0.6;
+        }
+
+        /* « Alerte » en couleur dès qu'une alerte est transmise. */
+        .dashboard-screen .nav-item-alert {
+          color: #fca5a5;
+        }
+
+        .dashboard-screen .nav-item-alert .nav-icon {
+          color: #f87171;
+          opacity: 1;
+          filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
+        }
+
         .dashboard-screen .nav-badge {
           margin-left: auto;
           width: 8px;
@@ -390,14 +494,49 @@ export default function Dashboard() {
         }
 
         .dashboard-screen .clearance {
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
           font-family: monospace;
           font-size: 0.72rem;
           letter-spacing: 2px;
           color: var(--violet);
           border: 1px solid rgba(168, 85, 247, 0.4);
-          padding: 6px 10px;
+          padding: 10px 12px;
           text-align: center;
           text-transform: uppercase;
+        }
+
+        /* ---- JAUGE D'EXPÉRIENCE (intégrée à l'habilitation, en violet) ---- */
+        .dashboard-screen .xp {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .dashboard-screen .xp-track {
+          position: relative;
+          height: 10px;
+          background: rgba(3, 7, 18, 0.7);
+          border: 1px solid rgba(168, 85, 247, 0.4);
+          overflow: hidden;
+        }
+
+        .dashboard-screen .xp-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #7e22ce, var(--violet));
+          box-shadow: 0 0 10px rgba(168, 85, 247, 0.7);
+          transition: width 0.6s ease;
+        }
+
+        .dashboard-screen .xp-levels {
+          display: flex;
+          justify-content: space-between;
+          font-family: monospace;
+          font-size: 0.58rem;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          color: rgba(168, 85, 247, 0.7);
         }
 
         .dashboard-screen .logout {
@@ -525,10 +664,88 @@ export default function Dashboard() {
           opacity: 0.85;
         }
 
-        /* ---- STATS ---- */
-        .dashboard-screen .stats-grid {
+        /* ---- VUE D'ENSEMBLE ---- */
+        .dashboard-screen .overview {
+          display: flex;
+          flex-direction: column;
+          gap: 22px;
+          max-width: 820px;
+        }
+
+        /* ---- NIVEAU D'ÉNERGIE ---- */
+        .dashboard-screen .energy {
+          padding: 24px 26px;
+          background: var(--panel-bg);
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(37, 99, 255, 0.3);
+          border-left: 4px solid var(--electric);
+          clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+        }
+
+        .dashboard-screen .energy-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+
+        .dashboard-screen .energy-label {
+          font-family: monospace;
+          font-size: 0.78rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+        }
+
+        .dashboard-screen .energy-value {
+          font-family: 'Allerta Stencil', sans-serif;
+          font-size: 2rem;
+          line-height: 1;
+          color: #fff;
+          text-shadow: 0 0 14px rgba(37, 99, 255, 0.55);
+        }
+
+        .dashboard-screen .energy-track {
+          position: relative;
+          height: 18px;
+          background: rgba(3, 7, 18, 0.7);
+          border: 1px solid rgba(37, 99, 255, 0.35);
+          overflow: hidden;
+        }
+
+        .dashboard-screen .energy-fill {
+          position: relative;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            var(--electric-deep),
+            var(--electric),
+            var(--electric-bright)
+          );
+          transition: width 0.6s ease;
+          animation: energy-glow 2.4s ease-in-out infinite;
+        }
+
+        /* Pulsation lumineuse (« glowing ») de la portion remplie. */
+        @keyframes energy-glow {
+          0%,
+          100% {
+            box-shadow: 0 0 8px rgba(37, 99, 255, 0.45),
+              0 0 16px rgba(37, 99, 255, 0.2);
+            filter: brightness(1);
+          }
+          50% {
+            box-shadow: 0 0 18px rgba(77, 139, 255, 0.85),
+              0 0 40px rgba(37, 99, 255, 0.55);
+            filter: brightness(1.3);
+          }
+        }
+
+        /* ---- CARTES ---- */
+        .dashboard-screen .cards-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
           gap: 22px;
         }
 
@@ -556,14 +773,6 @@ export default function Dashboard() {
           line-height: 1;
           color: #fff;
           text-shadow: 0 0 14px rgba(37, 99, 255, 0.55);
-        }
-
-        .dashboard-screen .stat-warn {
-          border-left-color: var(--violet);
-        }
-        .dashboard-screen .stat-warn .stat-value {
-          color: var(--violet);
-          text-shadow: 0 0 14px rgba(168, 85, 247, 0.5);
         }
 
         .dashboard-screen .stat-label {
