@@ -30,7 +30,7 @@ export default function Login() {
   // Redirige si l'utilisateur est déjà connecté.
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace('/');
+      router.replace('/dashboard');
     }
   }, [authLoading, user, router]);
 
@@ -40,7 +40,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.replace('/');
+      router.replace('/dashboard');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : 'unknown';
       setError(t(`login.errors.${code}`, { defaultValue: t('login.errors.default') }));

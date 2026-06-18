@@ -40,6 +40,50 @@
       "description": "Coordonnées de saut et journaux de mission réservés au commandement. Habilitation niveau 3 requise."
     }
   },
+  "dashboard": {
+    "page_title": "Tableau de bord",
+    "hud_module": "MODULE : SGC-F",
+    "hud_status": "Systèmes nominaux",
+    "nav": {
+      "dashboard": "Dashboard",
+      "sgcf": "SGC-f",
+      "missions": "Missions",
+      "alert": "Alerte"
+    },
+    "sections": {
+      "dashboard": {
+        "title": "Tableau de bord",
+        "subtitle": "// Cockpit opérationnel — vue d'ensemble des systèmes",
+        "stats": {
+          "missions": "Missions actives",
+          "energy": "Énergie disponible",
+          "alerts": "Alertes ouvertes",
+          "sync": "Stations synchronisées"
+        }
+      },
+      "sgcf": {
+        "title": "SGC-f",
+        "subtitle": "// Commandement Stargate — flotte fédérée",
+        "body": "Centre de coordination des opérations. Supervisez la flotte, les protocoles de saut et l'allocation d'énergie depuis une console unifiée."
+      },
+      "missions": {
+        "title": "Missions",
+        "subtitle": "// Journal des opérations en cours",
+        "columns": { "code": "Code", "objective": "Objectif", "status": "Statut" },
+        "status": { "active": "En cours", "standby": "En attente", "done": "Terminée" },
+        "items": {
+          "m1": "Cartographie du secteur P3X-774",
+          "m2": "Réapprovisionnement énergétique station Alpha",
+          "m3": "Extraction d'archives — site abandonné"
+        }
+      },
+      "alert": {
+        "title": "Alerte",
+        "subtitle": "// Flux d'incidents prioritaires",
+        "empty": "Aucune alerte critique. Tous les systèmes sont nominaux."
+      }
+    }
+  },
   "login": {
     "title": "Connexion",
     "subtitle": "// Accès au terminal de mission — identifiants requis",

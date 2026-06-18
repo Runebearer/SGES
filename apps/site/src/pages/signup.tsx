@@ -33,7 +33,7 @@ export default function SignUp() {
   // Redirige si l'utilisateur est déjà connecté.
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace('/');
+      router.replace('/dashboard');
     }
   }, [authLoading, user, router]);
 
@@ -55,7 +55,7 @@ export default function SignUp() {
         authLevel: DEFAULT_AUTH_LEVEL,
         createdAt: serverTimestamp(),
       });
-      router.replace('/');
+      router.replace('/dashboard');
     } catch (err) {
       // Log explicite : sans ça, l'erreur (ex. échec d'écriture Firestore) est
       // masquée par la redirection automatique post-connexion.

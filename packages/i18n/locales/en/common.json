@@ -40,6 +40,50 @@
       "description": "Jump coordinates and mission logs restricted to command. Clearance level 3 required."
     }
   },
+  "dashboard": {
+    "page_title": "Dashboard",
+    "hud_module": "MODULE: SGC-F",
+    "hud_status": "Systems nominal",
+    "nav": {
+      "dashboard": "Dashboard",
+      "sgcf": "SGC-f",
+      "missions": "Missions",
+      "alert": "Alert"
+    },
+    "sections": {
+      "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "// Operational cockpit — systems overview",
+        "stats": {
+          "missions": "Active missions",
+          "energy": "Available energy",
+          "alerts": "Open alerts",
+          "sync": "Synced stations"
+        }
+      },
+      "sgcf": {
+        "title": "SGC-f",
+        "subtitle": "// Stargate Command — federated fleet",
+        "body": "Operations coordination hub. Monitor the fleet, jump protocols and energy allocation from a unified console."
+      },
+      "missions": {
+        "title": "Missions",
+        "subtitle": "// Log of ongoing operations",
+        "columns": { "code": "Code", "objective": "Objective", "status": "Status" },
+        "status": { "active": "Active", "standby": "Standby", "done": "Completed" },
+        "items": {
+          "m1": "Mapping of sector P3X-774",
+          "m2": "Energy resupply — station Alpha",
+          "m3": "Archive extraction — abandoned site"
+        }
+      },
+      "alert": {
+        "title": "Alert",
+        "subtitle": "// Priority incident feed",
+        "empty": "No critical alerts. All systems nominal."
+      }
+    }
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "// Mission terminal access — credentials required",
