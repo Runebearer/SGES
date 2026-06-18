@@ -160,21 +160,20 @@ export default function Dashboard() {
                 )}
               </button>
             ))}
+            {/* Récompenses : poussée en bas du menu (au-dessus de
+                l'habilitation) sur desktop ; intégrée à la barre du bas sur mobile. */}
+            <button
+              type="button"
+              className={`nav-item nav-item-bare nav-rewards${active === 'rewards' ? ' active' : ''}`}
+              onClick={() => setActive('rewards')}
+              aria-current={active === 'rewards' ? 'page' : undefined}
+            >
+              <span className="nav-icon" aria-hidden="true">
+                {ICONS.rewards}
+              </span>
+              <span className="nav-label">{t('dashboard.nav.rewards')}</span>
+            </button>
           </nav>
-
-          {/* Récompenses : entrée de navigation placée juste au-dessus du
-              bloc habilitation. */}
-          <button
-            type="button"
-            className={`nav-item nav-item-bare${active === 'rewards' ? ' active' : ''}`}
-            onClick={() => setActive('rewards')}
-            aria-current={active === 'rewards' ? 'page' : undefined}
-          >
-            <span className="nav-icon" aria-hidden="true">
-              {ICONS.rewards}
-            </span>
-            <span className="nav-label">{t('dashboard.nav.rewards')}</span>
-          </button>
 
           <div className="sidebar-footer">
             {authLevel != null && (
@@ -502,6 +501,11 @@ export default function Dashboard() {
           color: #f87171;
           opacity: 1;
           filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.8));
+        }
+
+        /* Récompenses poussée en bas du menu (au-dessus de l'habilitation). */
+        .dashboard-screen .nav-rewards {
+          margin-top: auto;
         }
 
         /* « Récompenses » sans cadre (ni bordure, ni fond, ni ombre). */
@@ -901,45 +905,120 @@ export default function Dashboard() {
         .dashboard-screen .tag-standby { color: var(--electric-bright); }
         .dashboard-screen .tag-done { color: rgba(209, 225, 248, 0.55); }
 
-        /* ===== RESPONSIVE ===== */
+        /* ===== RESPONSIVE / MOBILE ===== */
         @media (max-width: 760px) {
+          /* Empilement vertical : en-tête (marque + nav + compte) puis contenu. */
           .dashboard-screen {
-            grid-template-columns: 1fr;
+            display: block;
+            min-height: 100vh;
           }
+
           .dashboard-screen .sidebar {
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 14px;
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
             border-right: none;
             border-bottom: 1px solid rgba(37, 99, 255, 0.3);
+            box-shadow: none;
           }
+
           .dashboard-screen .brand {
-            border-bottom: none;
-            padding: 4px 8px;
+            font-size: 1.5rem;
+            padding: 0 0 12px;
           }
+
+          /* Navigation : rangée d'onglets (icône + libellé), répartie. */
           .dashboard-screen .nav {
             flex-direction: row;
-            flex-wrap: wrap;
-            flex-grow: 1;
+            gap: 4px;
+            flex-grow: 0;
           }
-          .dashboard-screen .nav-item {
+
+          .dashboard-screen .nav-item,
+          .dashboard-screen .nav-item:hover,
+          .dashboard-screen .nav-item.active {
+            flex: 1 1 0;
+            min-width: 0;
+            flex-direction: column;
+            gap: 5px;
             width: auto;
+            padding: 8px 3px;
+            border: none;
+            border-left: none;
+            background: transparent;
+            box-shadow: none;
+            text-align: center;
+            font-size: 0.54rem;
+            letter-spacing: 0.5px;
+            color: rgba(209, 225, 248, 0.55);
+          }
+          .dashboard-screen .nav-rewards {
+            margin-top: 0;
           }
           .dashboard-screen .nav-label {
-            display: none;
+            display: block;
+            line-height: 1.2;
           }
+          .dashboard-screen .nav-icon {
+            width: 22px;
+            height: 22px;
+            opacity: 0.8;
+          }
+
+          /* Onglet actif : surligné par la couleur, sans cadre. */
+          .dashboard-screen .nav-item.active {
+            color: #fff;
+          }
+          .dashboard-screen .nav-item.active .nav-icon {
+            opacity: 1;
+            filter: drop-shadow(0 0 6px var(--electric-bright));
+          }
+          .dashboard-screen .nav-item-muted,
+          .dashboard-screen .nav-item-muted .nav-icon {
+            color: rgba(209, 225, 248, 0.3);
+          }
+          /* Pastille d'alerte en coin de l'onglet. */
+          .dashboard-screen .nav-badge {
+            position: absolute;
+            top: 4px;
+            right: 25%;
+            margin: 0;
+          }
+
+          /* Compte : habilitation + déconnexion sur une ligne. */
           .dashboard-screen .sidebar-footer {
             flex-direction: row;
-            border-top: none;
-            padding-top: 0;
+            align-items: stretch;
+            gap: 12px;
           }
+          .dashboard-screen .sidebar-footer .clearance {
+            flex: 1;
+          }
+          .dashboard-screen .logout {
+            white-space: nowrap;
+          }
+
+          .dashboard-screen .topbar {
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            padding: 12px 16px;
+          }
+
           .dashboard-screen .panel-area {
-            padding: 28px 18px 40px;
+            padding: 26px 16px 36px;
           }
           .dashboard-screen .section-title {
-            font-size: 1.8rem;
-            letter-spacing: 4px;
+            font-size: 1.7rem;
+            letter-spacing: 3px;
+          }
+
+          /* Tableau des missions plus compact. */
+          .dashboard-screen .missions {
+            font-size: 0.8rem;
+          }
+          .dashboard-screen .missions th,
+          .dashboard-screen .missions td {
+            padding: 10px 12px;
           }
         }
       `}</style>
