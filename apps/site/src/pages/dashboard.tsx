@@ -83,7 +83,7 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
 export default function Dashboard() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, authLevel, energy, loading, signOut } = useAuth();
+  const { user, authLevel, energy, loading, signOut, refreshEnergy } = useAuth();
 
   const [active, setActive] = useState<SectionId>('dashboard');
 
@@ -107,6 +107,18 @@ export default function Dashboard() {
       router.replace('/login');
     }
   }, [loading, user, router]);
+
+  // Rafraîchit l'énergie (serveur-autoritaire) à l'entrée de la section
+  // « Missions » : c'est là que le joueur dépense de l'énergie, on veut donc
+  // une valeur à jour (recharge quotidienne incluse) sans attendre un
+  // rechargement de page. refreshEnergy est hors deps (identité instable) :
+  // on ne déclenche qu'au changement de section.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (user && active === 'missions') {
+      refreshEnergy();
+    }
+  }, [active, user]);
 
   const navItems: SectionId[] = ['dashboard', 'sgcf', 'missions', 'alert'];
 
