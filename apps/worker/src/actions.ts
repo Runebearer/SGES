@@ -33,7 +33,7 @@ export const ACTIONS: ActionDef[] = [
     cost: { energy: 8, electricity: 5, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 2, artifactsMax: 2, xp: 8 },
     description:
-      "Envoyer une équipe de scientifiques fouiller les anciennes reliques et documents stockés dans les archives de la Terre. Permet de trouver des indices archéologiques sans consommer l'électricité de la Porte.",
+      "Bien des secrets sont enfouis dans les artefacts antiques. C'est une ressource rare mais nécessaire pour les recherches",
     subMissions: [{ id: 'gizeh', name: 'Plateau de Gizeh' }],
   },
   {
@@ -45,8 +45,8 @@ export const ACTIONS: ActionDef[] = [
     cost: { energy: 20, electricity: 15, artifacts: 10 },
     gain: { electricity: 0, artifactsMin: 0, artifactsMax: 0, xp: 20 },
     description:
-      "Le Dr. Daniel Jackson tente de traduire les cartouches de symboles récupérés pour calculer la dérive stellaire et découvrir la première adresse de la Porte : Chulak.",
-    subMissions: [],
+      "Le Dr. Daniel Jackson tente de traduire les cartouches de symboles récupérés pour calculer la dérive stellaire.",
+    subMissions: [{ id: 'abydos', name: "Cartouche d'Abydos" }],
   },
   {
     id: 'malp_recon',
