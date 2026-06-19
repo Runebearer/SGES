@@ -96,6 +96,18 @@ export interface ActionGain {
   xp: number;
 }
 
+/** Section du dashboard où afficher la carte d'une action. */
+export type ActionSection = 'sgcf' | 'missions';
+
+/**
+ * Sous-mission rattachée à une action (révélée au dos de la carte). Pour
+ * l'instant purement descriptive ; deviendra exécutable ultérieurement.
+ */
+export interface SubMission {
+  id: string;
+  name: string;
+}
+
 /**
  * Définition d'une action du catalogue (serveur-autoritaire, exposée par
  * `GET /actions`). `requiredLevel` et `requiredAddressStatus` sont conservés
@@ -105,11 +117,15 @@ export interface ActionGain {
 export interface ActionDef {
   id: string;
   name: string;
+  /** Section du dashboard où afficher la carte ; null = pas encore placée. */
+  section: ActionSection | null;
   requiredLevel: number;
   requiredAddressStatus: string | null;
   cost: ActionCost;
   gain: ActionGain;
   description: string;
+  /** Sous-missions du thème, révélées au dos de la carte (peut être vide). */
+  subMissions: SubMission[];
 }
 
 /** Réponse de `POST /action/{id}` en cas de succès. */

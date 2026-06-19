@@ -11,62 +11,78 @@ export const ACTIONS: ActionDef[] = [
   {
     id: 'generator_activation',
     name: 'Activation des générateurs',
+    section: 'sgcf',
     requiredLevel: 1,
     requiredAddressStatus: null,
     cost: { energy: 5, electricity: 0, artifacts: 0 },
     gain: { electricity: 30, artifactsMin: 0, artifactsMax: 0, xp: 5 },
     description:
       "Configurer et alimenter les générateurs à Naquadah de la base. Une alimentation stable est indispensable avant d'initier toute séquence de numérotation.",
+    subMissions: [
+      { id: 'nuclear', name: 'Nucléaire' },
+      { id: 'naquadah', name: 'Naquadah' },
+      { id: 'naquadria', name: 'Naquadria' },
+    ],
   },
   {
     id: 'earth_archaeology',
     name: 'Archéologie Terrienne',
+    section: 'sgcf',
     requiredLevel: 1,
     requiredAddressStatus: null,
     cost: { energy: 8, electricity: 5, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 2, artifactsMax: 2, xp: 8 },
     description:
       "Envoyer une équipe de scientifiques fouiller les anciennes reliques et documents stockés dans les archives de la Terre. Permet de trouver des indices archéologiques sans consommer l'électricité de la Porte.",
+    subMissions: [{ id: 'gizeh', name: 'Plateau de Gizeh' }],
   },
   {
     id: 'archaeological_research',
     name: 'Recherche Archéologique',
+    section: 'sgcf',
     requiredLevel: 1,
     requiredAddressStatus: null,
     cost: { energy: 20, electricity: 15, artifacts: 10 },
     gain: { electricity: 0, artifactsMin: 0, artifactsMax: 0, xp: 20 },
     description:
       "Le Dr. Daniel Jackson tente de traduire les cartouches de symboles récupérés pour calculer la dérive stellaire et découvrir la première adresse de la Porte : Chulak.",
+    subMissions: [],
   },
   {
     id: 'malp_recon',
     name: 'Mission : Reconnaissance MALP',
+    section: 'missions',
     requiredLevel: 1,
     requiredAddressStatus: 'Découverte',
     cost: { energy: 10, electricity: 20, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 0, artifactsMax: 0, xp: 10 },
     description:
       "Composer le code d'une adresse découverte et envoyer une sonde automatisée MALP à travers le vortex pour s'assurer que le site est viable.",
+    subMissions: [],
   },
   {
     id: 'planetary_archaeology',
     name: 'Mission : Archéologie Planétaire',
+    section: 'missions',
     requiredLevel: 1,
     requiredAddressStatus: 'Vivable',
     cost: { energy: 15, electricity: 30, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 5, artifactsMax: 10, xp: 15 },
     description:
       "Établissez un horizon des événements stable et envoyez une équipe SG explorer les ruines extraterrestres sécurisées pour y extraire des reliques.",
+    subMissions: [],
   },
   {
     id: 'chulak_diplomacy',
     name: 'Mission Diplomatique (Chulak)',
+    section: null,
     requiredLevel: 2,
     requiredAddressStatus: 'Chulak',
     cost: { energy: 20, electricity: 40, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 4, artifactsMax: 6, xp: 30 },
     description:
       "Traversez la Porte vers le monde d'origine d'Apophis pour sceller une alliance avec la rébellion Jaffa naissante. Mission nerveuse et riche en XP.",
+    subMissions: [],
   },
 ];
 

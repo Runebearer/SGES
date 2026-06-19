@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
-import type { ActionDef } from '@sges/api-contract';
+import type { ActionSection } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
@@ -81,107 +81,67 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
   );
 }
 
-// Liste des actions (section « Missions »). Coûts/gains serveur-autoritaires :
-// le bouton est désactivé tant que le joueur ne peut pas payer, et l'exécution
-// passe par le Worker (cf. AuthContext.performAction).
-function ActionsPanel() {
-  const { t } = useTranslation('common');
-  const { player, actions, performAction } = useAuth();
-  const [busy, setBusy] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<
-    { id: string; text: string; error?: boolean } | null
-  >(null);
-
-  const canAfford = (a: ActionDef) =>
-    player != null &&
-    player.energy.value >= a.cost.energy &&
-    player.electricity >= a.cost.electricity &&
-    player.artifacts >= a.cost.artifacts;
-
-  const run = async (a: ActionDef) => {
-    setBusy(a.id);
-    setFeedback(null);
-    try {
-      const res = await performAction(a.id);
-      const parts: string[] = [];
-      if (res.gained.electricity) parts.push(`+${res.gained.electricity} 🔌`);
-      if (res.gained.artifacts) parts.push(`+${res.gained.artifacts} 🏺`);
-      if (res.gained.xp) parts.push(`+${res.gained.xp} ✨`);
-      setFeedback({ id: a.id, text: parts.join('   ') || 'OK' });
-    } catch {
-      setFeedback({
-        id: a.id,
-        text: t('dashboard.actions.insufficient'),
-        error: true,
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const costParts = (a: ActionDef) => {
-    const p: string[] = [];
-    if (a.cost.energy) p.push(`${a.cost.energy} ⚡`);
-    if (a.cost.electricity) p.push(`${a.cost.electricity} 🔌`);
-    if (a.cost.artifacts) p.push(`${a.cost.artifacts} 🏺`);
-    return p.length ? p.join('  ') : '—';
-  };
-
-  const gainParts = (a: ActionDef) => {
-    const p: string[] = [];
-    if (a.gain.electricity) p.push(`+${a.gain.electricity} 🔌`);
-    if (a.gain.artifactsMax) {
-      p.push(
-        a.gain.artifactsMin === a.gain.artifactsMax
-          ? `+${a.gain.artifactsMax} 🏺`
-          : `+${a.gain.artifactsMin}–${a.gain.artifactsMax} 🏺`
-      );
-    }
-    if (a.gain.xp) p.push(`+${a.gain.xp} ✨`);
-    return p.length ? p.join('  ') : '—';
-  };
-
-  if (actions.length === 0) {
-    return (
-      <div className="panel panel-empty">
-        <p>{t('dashboard.actions.empty')}</p>
-      </div>
-    );
-  }
+// Cartes d'action (UI, sans handler d'exécution pour l'instant) : carte carrée
+// holographique qui se retourne au clic (flip 3D) pour révéler les sous-missions
+// du thème. Filtrées par section du dashboard (cf. ActionDef.section).
+function ActionCards({ section }: { section: ActionSection }) {
+  const { actions } = useAuth();
+  const [flipped, setFlipped] = useState<string | null>(null);
+  const list = actions.filter((a) => a.section === section);
+  if (list.length === 0) return null;
 
   return (
     <div className="actions-list">
-      {actions.map((a) => (
-        <div key={a.id} className="action-card">
-          <div className="action-head">
-            <h3 className="action-name">{a.name}</h3>
-            <button
-              type="button"
-              className="action-btn"
-              disabled={busy != null || !canAfford(a)}
-              onClick={() => run(a)}
+      {list.map((a) => (
+        <div
+          key={a.id}
+          className={`action-card${flipped === a.id ? ' flipped' : ''}`}
+        >
+          <div className="action-inner">
+            {/* Recto : titre + descriptif. Clic → retourne la carte. */}
+            <div
+              className="action-face action-front"
+              role="button"
+              tabIndex={0}
+              aria-label={a.name}
+              onClick={() => setFlipped(a.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setFlipped(a.id);
+                }
+              }}
             >
-              {busy === a.id
-                ? t('dashboard.actions.running')
-                : t('dashboard.actions.launch')}
-            </button>
+              <h3 className="action-name">{a.name}</h3>
+              <p className="action-desc">{a.description}</p>
+            </div>
+
+            {/* Verso : sous-missions du thème. */}
+            <div className="action-face action-back">
+              <div className="action-back-head">
+                <button
+                  type="button"
+                  className="action-back-btn"
+                  onClick={() => setFlipped(null)}
+                  aria-label="Retour"
+                >
+                  ←
+                </button>
+                <h3 className="action-name action-back-title">{a.name}</h3>
+              </div>
+              <ul className="submission-list">
+                {a.subMissions.length === 0 ? (
+                  <li className="submission-empty">À venir…</li>
+                ) : (
+                  a.subMissions.map((s) => (
+                    <li key={s.id} className="submission">
+                      {s.name}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
           </div>
-          <p className="action-desc">{a.description}</p>
-          <div className="action-meta">
-            <span className="action-cost">
-              <em>{t('dashboard.actions.cost')}</em>
-              {costParts(a)}
-            </span>
-            <span className="action-gain">
-              <em>{t('dashboard.actions.gain')}</em>
-              {gainParts(a)}
-            </span>
-          </div>
-          {feedback?.id === a.id && (
-            <p className={`action-fb${feedback.error ? ' err' : ''}`}>
-              {feedback.text}
-            </p>
-          )}
         </div>
       ))}
     </div>
@@ -404,12 +364,15 @@ export default function Dashboard() {
             )}
 
             {active === 'sgcf' && (
-              <div className="panel">
-                <p>{t('dashboard.sections.sgcf.body')}</p>
-              </div>
+              <>
+                <div className="panel">
+                  <p>{t('dashboard.sections.sgcf.body')}</p>
+                </div>
+                <ActionCards section="sgcf" />
+              </>
             )}
 
-            {active === 'missions' && <ActionsPanel />}
+            {active === 'missions' && <ActionCards section="missions" />}
 
             {active === 'alert' && (
               <div className="panel panel-empty">
@@ -1035,103 +998,247 @@ export default function Dashboard() {
         .dashboard-screen .tag-standby { color: var(--electric-bright); }
         .dashboard-screen .tag-done { color: rgba(209, 225, 248, 0.55); }
 
-        /* ---- ACTIONS (missions) ---- */
+        /* ---- ACTIONS (cartes holographiques carrées) ---- */
         .dashboard-screen .actions-list {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-          gap: 18px;
-          max-width: 980px;
+          grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+          gap: 20px;
+          max-width: 920px;
+          /* Chaque carte prend sa propre hauteur (selon son texte). */
+          align-items: start;
         }
 
+        /* Espace entre le panneau d'intro (SGC-F) et la grille de cartes. */
+        .dashboard-screen .panel + .actions-list {
+          margin-top: 24px;
+        }
+
+        /* Conteneur de perspective. Pas de hauteur fixe : la carte se
+           dimensionne sur son contenu (cf. .action-inner en grille). */
         .dashboard-screen .action-card {
+          position: relative;
+          perspective: 1200px;
+          transition: transform 0.3s ease;
+        }
+
+        .dashboard-screen .action-card:hover {
+          transform: translateY(-6px);
+        }
+
+        /* Rotateur 3D : les deux faces sont empilées dans la MÊME cellule de
+           grille, donc la hauteur = celle de la face la plus haute (contenu). */
+        .dashboard-screen .action-inner {
+          display: grid;
+          transform-style: preserve-3d;
+          transition: transform 0.7s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+
+        .dashboard-screen .action-card.flipped .action-inner {
+          transform: rotateY(180deg);
+        }
+
+        /* Faces (recto/verso) : tout le visuel holographique vit ici. */
+        .dashboard-screen .action-face {
+          grid-area: 1 / 1;
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          padding: 22px 24px;
-          background: var(--panel-bg);
-          backdrop-filter: blur(6px);
-          border: 1px solid rgba(37, 99, 255, 0.3);
-          border-left: 4px solid var(--electric);
-          clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+          gap: 10px;
+          padding: 20px 18px;
+          overflow: hidden;
+          color: var(--text-main);
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          background: linear-gradient(
+            155deg,
+            rgba(37, 99, 255, 0.16),
+            rgba(168, 85, 247, 0.08) 50%,
+            rgba(11, 58, 168, 0.18)
+          );
+          border: 1px solid rgba(120, 170, 255, 0.45);
+          backdrop-filter: blur(8px);
+          box-shadow: inset 0 0 30px rgba(37, 99, 255, 0.18),
+            0 0 18px rgba(37, 99, 255, 0.2);
+          clip-path: polygon(
+            0 16px,
+            16px 0,
+            100% 0,
+            100% calc(100% - 16px),
+            calc(100% - 16px) 100%,
+            0 100%
+          );
+          transition: box-shadow 0.3s ease, border-color 0.3s ease;
         }
 
-        .dashboard-screen .action-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 14px;
+        .dashboard-screen .action-front {
+          cursor: pointer;
+        }
+        .dashboard-screen .action-front:focus-visible {
+          outline: 1px solid var(--electric-bright);
+          outline-offset: -4px;
+        }
+
+        .dashboard-screen .action-back {
+          transform: rotateY(180deg);
+        }
+
+        .dashboard-screen .action-card:hover .action-face {
+          border-color: rgba(150, 200, 255, 0.8);
+          box-shadow: inset 0 0 40px rgba(77, 139, 255, 0.28),
+            0 0 30px rgba(77, 139, 255, 0.45);
+        }
+
+        /* Balayage irisé « hologramme ». */
+        .dashboard-screen .action-face::before {
+          content: '';
+          position: absolute;
+          inset: -60%;
+          background: linear-gradient(
+            115deg,
+            transparent 35%,
+            rgba(120, 200, 255, 0.2) 45%,
+            rgba(168, 85, 247, 0.22) 50%,
+            rgba(125, 255, 225, 0.18) 55%,
+            transparent 65%
+          );
+          transform: translate(-25%, -15%);
+          animation: holo-sweep 7s linear infinite;
+          pointer-events: none;
+        }
+
+        @keyframes holo-sweep {
+          0% {
+            transform: translate(-25%, -15%);
+            opacity: 0.45;
+          }
+          50% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translate(25%, 15%);
+            opacity: 0.45;
+          }
+        }
+
+        /* Lignes de balayage (scanlines). */
+        .dashboard-screen .action-face::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.05) 0 1px,
+            transparent 1px 3px
+          );
+          opacity: 0.35;
+          pointer-events: none;
         }
 
         .dashboard-screen .action-name {
-          font-family: 'Allerta Stencil', sans-serif;
-          font-size: 1.1rem;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          color: var(--electric-bright);
+          position: relative;
+          z-index: 1;
           margin: 0;
-        }
-
-        .dashboard-screen .action-btn {
-          flex-shrink: 0;
-          font-family: 'Segoe UI', Roboto, sans-serif;
-          font-size: 0.72rem;
-          font-weight: bold;
+          font-family: monospace;
+          font-size: 0.92rem;
+          font-weight: 700;
           letter-spacing: 2px;
           text-transform: uppercase;
-          color: #fff;
-          background: var(--electric-deep);
-          border: 1px solid var(--electric);
-          padding: 8px 16px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .dashboard-screen .action-btn:hover:not(:disabled) {
-          background: var(--electric);
-          box-shadow: 0 0 14px rgba(37, 99, 255, 0.6);
-        }
-
-        .dashboard-screen .action-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
+          background: linear-gradient(90deg, #9bd8ff, #c9b3ff, #7fe9d2);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter: drop-shadow(0 0 8px rgba(99, 150, 255, 0.45));
         }
 
         .dashboard-screen .action-desc {
-          font-size: 0.86rem;
+          position: relative;
+          z-index: 1;
+          flex: 1;
+          margin: 0;
+          font-family: monospace;
+          font-size: 0.74rem;
+          letter-spacing: 0.5px;
           line-height: 1.5;
-          color: var(--text-main);
-          opacity: 0.85;
-          margin: 0;
+          color: var(--electric-bright);
+          opacity: 0.9;
         }
 
-        .dashboard-screen .action-meta {
+        /* ---- VERSO : sous-missions ---- */
+        .dashboard-screen .action-back-head {
+          position: relative;
+          z-index: 1;
           display: flex;
-          flex-wrap: wrap;
-          gap: 8px 20px;
-          font-family: monospace;
-          font-size: 0.82rem;
+          align-items: center;
+          gap: 10px;
         }
 
-        .dashboard-screen .action-meta em {
-          font-style: normal;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          font-size: 0.64rem;
-          opacity: 0.55;
-          margin-right: 8px;
+        .dashboard-screen .action-back-btn {
+          flex-shrink: 0;
+          width: 26px;
+          height: 26px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1rem;
+          line-height: 1;
+          color: var(--electric-bright);
+          background: rgba(37, 99, 255, 0.12);
+          border: 1px solid rgba(120, 170, 255, 0.45);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .dashboard-screen .action-back-btn:hover {
+          background: var(--electric);
+          color: #030712;
+          box-shadow: 0 0 12px rgba(77, 139, 255, 0.6);
         }
 
-        .dashboard-screen .action-cost { color: #fca5a5; }
-        .dashboard-screen .action-gain { color: #4ade80; }
+        .dashboard-screen .action-back-title {
+          font-size: 0.78rem;
+          letter-spacing: 1.5px;
+        }
 
-        .dashboard-screen .action-fb {
+        .dashboard-screen .submission-list {
+          position: relative;
+          z-index: 1;
+          list-style: none;
           margin: 0;
-          font-family: monospace;
-          font-size: 0.85rem;
-          letter-spacing: 1px;
-          color: #4ade80;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          overflow: auto;
         }
-        .dashboard-screen .action-fb.err { color: #fca5a5; }
+
+        .dashboard-screen .submission {
+          font-family: monospace;
+          font-size: 0.8rem;
+          letter-spacing: 1px;
+          color: var(--electric-bright);
+          padding: 9px 12px;
+          background: rgba(37, 99, 255, 0.1);
+          border: 1px solid rgba(120, 170, 255, 0.3);
+          border-left: 3px solid var(--electric);
+          clip-path: polygon(
+            0 5px,
+            5px 0,
+            100% 0,
+            100% calc(100% - 5px),
+            calc(100% - 5px) 100%,
+            0 100%
+          );
+          transition: all 0.2s ease;
+        }
+        .dashboard-screen .submission:hover {
+          background: rgba(37, 99, 255, 0.2);
+          box-shadow: 0 0 12px rgba(37, 99, 255, 0.3);
+        }
+
+        .dashboard-screen .submission-empty {
+          font-family: monospace;
+          font-size: 0.78rem;
+          letter-spacing: 1px;
+          color: rgba(209, 225, 248, 0.4);
+        }
 
         /* ===== RESPONSIVE / MOBILE ===== */
         @media (max-width: 760px) {
@@ -1279,6 +1386,21 @@ export default function Dashboard() {
           .dashboard-screen .missions th,
           .dashboard-screen .missions td {
             padding: 10px 12px;
+          }
+        }
+
+        /* ---- CARTES D'ACTION : adaptation téléphones ---- */
+        @media (max-width: 520px) {
+          .dashboard-screen .actions-list {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          /* Pleine largeur, hauteur selon le contenu, texte agrandi. */
+          .dashboard-screen .action-name {
+            font-size: 1.1rem;
+          }
+          .dashboard-screen .action-desc {
+            font-size: 0.92rem;
           }
         }
       `}</style>
