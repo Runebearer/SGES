@@ -17,6 +17,16 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
 
 type SectionId = 'dashboard' | 'sgcf' | 'missions' | 'alert' | 'rewards';
 
+const SECTION_IDS: readonly SectionId[] = [
+  'dashboard',
+  'sgcf',
+  'missions',
+  'alert',
+  'rewards',
+];
+// Clé localStorage : mémorise l'onglet courant pour le restaurer au refresh.
+const SECTION_STORAGE_KEY = 'sges:dashboard:section';
+
 // Glyphes SVG du menu (trait fin, style HUD).
 const ICONS: Record<SectionId, JSX.Element> = {
   dashboard: (
@@ -196,6 +206,21 @@ export default function Dashboard() {
     }
   }, [active, user]);
 
+  // Restaure le dernier onglet visité après un rafraîchissement de page.
+  // Effet (et non valeur initiale) pour éviter tout décalage d'hydratation SSR.
+  useEffect(() => {
+    const saved = localStorage.getItem(SECTION_STORAGE_KEY);
+    if (saved && (SECTION_IDS as readonly string[]).includes(saved)) {
+      setActive(saved as SectionId);
+    }
+  }, []);
+
+  // Sélectionne un onglet ET le mémorise (restauré au prochain chargement).
+  const selectSection = (id: SectionId) => {
+    setActive(id);
+    localStorage.setItem(SECTION_STORAGE_KEY, id);
+  };
+
   const navItems: SectionId[] = ['dashboard', 'sgcf', 'missions', 'alert'];
 
   return (
@@ -239,7 +264,7 @@ export default function Dashboard() {
                 // La navigation vers « Alerte » n'est ouverte que si une alerte
                 // est en cours ; sinon l'entrée est désactivée.
                 disabled={id === 'alert' && !hasAlert}
-                onClick={() => setActive(id)}
+                onClick={() => selectSection(id)}
                 aria-current={active === id ? 'page' : undefined}
               >
                 <span className="nav-icon" aria-hidden="true">
@@ -256,7 +281,7 @@ export default function Dashboard() {
             <button
               type="button"
               className={`nav-item nav-item-bare nav-rewards${active === 'rewards' ? ' active' : ''}`}
-              onClick={() => setActive('rewards')}
+              onClick={() => selectSection('rewards')}
               aria-current={active === 'rewards' ? 'page' : undefined}
             >
               <span className="nav-icon" aria-hidden="true">
