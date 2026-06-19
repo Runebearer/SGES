@@ -210,11 +210,27 @@ export default function Dashboard() {
             <span className="hud-status">
               <i className="dot" />
               {t('dashboard.hud_status')}
-
-              <button type="button" className="logout" onClick={() => signOut()}>
-                {t('account.logout')}
-              </button>
             </span>
+
+            <button
+              type="button"
+              className="logout"
+              onClick={() => signOut()}
+              aria-label={t('account.logout')}
+              title={t('account.logout')}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3v9" />
+                <path d="M7 6.5a7 7 0 1 0 10 0" />
+              </svg>
+            </button>
           </header>
 
           <section className="panel-area">
@@ -304,6 +320,15 @@ export default function Dashboard() {
       </div>
 
       <style jsx global>{`
+        /* Réinitialise la marge par défaut du body (sinon un cadre blanc
+           entoure la page) et applique le fond sombre jusqu'aux bords. */
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background-color: #030712;
+        }
+
         .dashboard-screen {
           /* Palette : bleu électrique en remplacement du cyan/bleu d'origine. */
           --bg-space: #030712;
@@ -580,16 +605,20 @@ export default function Dashboard() {
         }
 
         .dashboard-screen .logout {
-          font-size: 0.78rem;
-          font-weight: bold;
-          letter-spacing: 2px;
-          text-transform: uppercase;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: var(--electric-bright);
           background: transparent;
           border: 1px solid var(--electric-deep);
-          padding: 8px 14px;
+          padding: 7px;
           cursor: pointer;
           transition: all 0.25s ease;
+        }
+
+        .dashboard-screen .logout svg {
+          width: 18px;
+          height: 18px;
         }
 
         .dashboard-screen .logout:hover {
@@ -626,6 +655,9 @@ export default function Dashboard() {
           display: inline-flex;
           align-items: center;
           gap: 16px;
+          /* Pousse le statut + la déconnexion vers la droite de la barre,
+             en gardant la jauge d'habilitation à gauche. */
+          margin-left: auto;
           color: var(--electric-bright);
         }
 
@@ -898,10 +930,13 @@ export default function Dashboard() {
 
         /* ===== RESPONSIVE / MOBILE ===== */
         @media (max-width: 760px) {
-          /* Empilement vertical : en-tête (marque + nav + compte) puis contenu. */
+          /* Empilement vertical : en-tête (marque) puis contenu ; la barre de
+             navigation est ancrée en bas de l'écran (cf. .nav ci-dessous). On
+             réserve l'espace du bas pour ne pas masquer le contenu. */
           .dashboard-screen {
             display: block;
             min-height: 100vh;
+            padding-bottom: 78px;
           }
 
           .dashboard-screen .sidebar {
@@ -911,9 +946,17 @@ export default function Dashboard() {
             border-right: none;
             border-bottom: 1px solid rgba(37, 99, 255, 0.3);
             box-shadow: none;
+            /* Indispensable : un backdrop-filter sur la sidebar créerait un
+               bloc conteneur et empêcherait le position:fixed du .nav de se
+               caler sur le viewport (la barre resterait collée en haut). */
+            backdrop-filter: none;
           }
 
+          /* Mobile : titre à gauche, boutons FR/EN à droite sur la même ligne. */
           .dashboard-screen .brand-row {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
             padding: 0 0 12px;
           }
 
@@ -921,11 +964,22 @@ export default function Dashboard() {
             font-size: 1.5rem;
           }
 
-          /* Navigation : rangée d'onglets (icône + libellé), répartie. */
+          /* Navigation : barre d'onglets (icône + libellé) ancrée en bas de
+             l'écran, fixe et répartie sur toute la largeur. */
           .dashboard-screen .nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
             flex-direction: row;
             gap: 4px;
             flex-grow: 0;
+            padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+            background: rgba(3, 7, 18, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(37, 99, 255, 0.3);
+            box-shadow: 0 -4px 24px rgba(37, 99, 255, 0.18);
           }
 
           .dashboard-screen .nav-item,
@@ -985,18 +1039,24 @@ export default function Dashboard() {
             padding: 12px 16px;
           }
 
-          /* Compte (habilitation + déconnexion) intégré au statut : passe à la
-             ligne et s'étale sur toute la largeur sous le module. */
-          .dashboard-screen .hud-status {
-            flex-wrap: wrap;
-            gap: 10px 14px;
-          }
+          /* Mobile : la déconnexion se place à droite de la jauge
+             d'habilitation (1re ligne), le statut « Systèmes nominaux » passe
+             en dessous. On réordonne via flex order : habilitation → power →
+             statut. */
           .dashboard-screen .clearance {
+            order: 1;
             flex: 1;
             min-width: 160px;
           }
           .dashboard-screen .logout {
+            order: 2;
             white-space: nowrap;
+          }
+          .dashboard-screen .hud-status {
+            order: 3;
+            flex-wrap: wrap;
+            margin-left: 0;
+            gap: 10px 14px;
           }
 
           .dashboard-screen .panel-area {
