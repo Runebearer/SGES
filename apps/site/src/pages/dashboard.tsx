@@ -127,8 +127,11 @@ export default function Dashboard() {
 
         {/* ===== MENU DE NAVIGATION ===== */}
         <aside className="sidebar">
-          <div className="brand">
-            SGC<span>-f</span>
+          <div className="brand-row">
+            <div className="brand">
+              SGC<span>-f</span>
+            </div>
+            <LanguageSwitcher />
           </div>
 
           <nav className="nav">
@@ -174,49 +177,43 @@ export default function Dashboard() {
               <span className="nav-label">{t('dashboard.nav.rewards')}</span>
             </button>
           </nav>
-
-          <div className="sidebar-footer">
-            {authLevel != null && (
-              <>
-                {/* Habilitation + jauge d'expérience : niveau = niveau du
-                    compte, remplissage selon les points d'expérience (à venir). */}
-                <div className="clearance">
-                  {t('account.clearance', { level: authLevel })}
-                  <div className="xp">
-                    <div
-                      className="xp-track"
-                      role="progressbar"
-                      aria-label={t('dashboard.xp.label')}
-                      aria-valuenow={xp ?? undefined}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div className="xp-fill" style={{ width: `${xpPct}%` }} />
-                    </div>
-                    <div className="xp-levels">
-                      <span>{t('dashboard.xp.level', { level: authLevel })}</span>
-                      <span>{t('dashboard.xp.level', { level: authLevel + 1 })}</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            <button type="button" className="logout" onClick={() => signOut()}>
-              {t('account.logout')}
-            </button>
-          </div>
         </aside>
 
         {/* ===== ZONE PRINCIPALE ===== */}
         <main className="content">
           <header className="topbar">
-            <span className="hud-module">{t('dashboard.hud_module')}</span>
-            <span className="hud-right">
-              <span className="hud-status">
-                <i className="dot" />
-                {t('dashboard.hud_status')}
-              </span>
-              <LanguageSwitcher />
+            {/* La jauge d'habilitation remplace l'ancien « MODULE : SGC-F ». */}
+            {authLevel != null && (
+              /* Habilitation + jauge d'expérience : niveau = niveau du
+                 compte, remplissage selon les points d'expérience (à venir). */
+              <div className="clearance">
+                {t('account.clearance', { level: authLevel })}
+                <div className="xp">
+                  <div
+                    className="xp-track"
+                    role="progressbar"
+                    aria-label={t('dashboard.xp.label')}
+                    aria-valuenow={xp ?? undefined}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div className="xp-fill" style={{ width: `${xpPct}%` }} />
+                  </div>
+                  <div className="xp-levels">
+                    <span>{t('dashboard.xp.level', { level: authLevel })}</span>
+                    <span>{t('dashboard.xp.level', { level: authLevel + 1 })}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <span className="hud-status">
+              <i className="dot" />
+              {t('dashboard.hud_status')}
+
+              <button type="button" className="logout" onClick={() => signOut()}>
+                {t('account.logout')}
+              </button>
             </span>
           </header>
 
@@ -396,6 +393,15 @@ export default function Dashboard() {
           box-shadow: 4px 0 30px rgba(37, 99, 255, 0.12);
         }
 
+        .dashboard-screen .brand-row {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 4px 8px 18px;
+          border-bottom: 1px solid rgba(37, 99, 255, 0.25);
+        }
+
         .dashboard-screen .brand {
           font-family: 'Allerta Stencil', sans-serif;
           font-size: 1.7rem;
@@ -404,8 +410,6 @@ export default function Dashboard() {
           text-transform: uppercase;
           color: #fff;
           text-shadow: 0 0 14px rgba(37, 99, 255, 0.6);
-          padding: 4px 8px 18px;
-          border-bottom: 1px solid rgba(37, 99, 255, 0.25);
         }
 
         .dashboard-screen .brand span {
@@ -528,24 +532,17 @@ export default function Dashboard() {
           animation: dash-blink 1.4s infinite;
         }
 
-        .dashboard-screen .sidebar-footer {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding-top: 16px;
-          border-top: 1px solid rgba(37, 99, 255, 0.2);
-        }
-
         .dashboard-screen .clearance {
           display: flex;
           flex-direction: column;
-          gap: 9px;
+          gap: 7px;
+          min-width: 190px;
           font-family: monospace;
           font-size: 0.72rem;
           letter-spacing: 2px;
           color: var(--violet);
           border: 1px solid rgba(168, 85, 247, 0.4);
-          padding: 10px 12px;
+          padding: 6px 12px;
           text-align: center;
           text-transform: uppercase;
         }
@@ -625,16 +622,10 @@ export default function Dashboard() {
           backdrop-filter: blur(8px);
         }
 
-        .dashboard-screen .hud-right {
-          display: inline-flex;
-          align-items: center;
-          gap: 20px;
-        }
-
         .dashboard-screen .hud-status {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
+          gap: 16px;
           color: var(--electric-bright);
         }
 
@@ -922,9 +913,12 @@ export default function Dashboard() {
             box-shadow: none;
           }
 
+          .dashboard-screen .brand-row {
+            padding: 0 0 12px;
+          }
+
           .dashboard-screen .brand {
             font-size: 1.5rem;
-            padding: 0 0 12px;
           }
 
           /* Navigation : rangée d'onglets (icône + libellé), répartie. */
@@ -985,23 +979,24 @@ export default function Dashboard() {
             margin: 0;
           }
 
-          /* Compte : habilitation + déconnexion sur une ligne. */
-          .dashboard-screen .sidebar-footer {
-            flex-direction: row;
-            align-items: stretch;
-            gap: 12px;
-          }
-          .dashboard-screen .sidebar-footer .clearance {
-            flex: 1;
-          }
-          .dashboard-screen .logout {
-            white-space: nowrap;
-          }
-
           .dashboard-screen .topbar {
             flex-wrap: wrap;
             gap: 8px 14px;
             padding: 12px 16px;
+          }
+
+          /* Compte (habilitation + déconnexion) intégré au statut : passe à la
+             ligne et s'étale sur toute la largeur sous le module. */
+          .dashboard-screen .hud-status {
+            flex-wrap: wrap;
+            gap: 10px 14px;
+          }
+          .dashboard-screen .clearance {
+            flex: 1;
+            min-width: 160px;
+          }
+          .dashboard-screen .logout {
+            white-space: nowrap;
           }
 
           .dashboard-screen .panel-area {
