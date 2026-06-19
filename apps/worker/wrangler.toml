@@ -1,0 +1,29 @@
+name = "sges-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# --- Variables non secrètes ---------------------------------------------------
+[vars]
+# Identifiant du projet Firebase (= `aud` attendu dans les ID tokens).
+# Doit correspondre à NEXT_PUBLIC_FIREBASE_PROJECT_ID côté site.
+FIREBASE_PROJECT_ID = "sges-ae22f"
+
+# Fuseau horaire de la recharge quotidienne (« minuit » de référence).
+# La jauge repasse à 100 % au premier accès suivant minuit dans ce fuseau.
+RESET_TIMEZONE = "Europe/Paris"
+
+# Origine(s) autorisée(s) pour le CORS, séparées par des virgules.
+# Prod (Vercel) + dev local.
+ALLOWED_ORIGIN = "https://sges-site.vercel.app,http://localhost:3000"
+
+# --- Stockage KV (serveur-autoritaire) ---------------------------------------
+# Créer le namespace une fois :
+#   wrangler kv namespace create ENERGY_KV
+# puis coller l'`id` renvoyé ci-dessous. Pour `wrangler dev`, créer aussi un
+# namespace de preview :
+#   wrangler kv namespace create ENERGY_KV --preview
+# et renseigner `preview_id`.
+[[kv_namespaces]]
+binding = "ENERGY_KV"
+id = "39eaffdd4c48432a9933133b0ff174dd"
+# preview_id = "REMPLACER_PAR_PREVIEW_ID_KV"

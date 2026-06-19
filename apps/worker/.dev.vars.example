@@ -1,0 +1,7 @@
+# Variables locales pour `wrangler dev` — copier en `.dev.vars` (non commité).
+# En production, ces valeurs viennent de [vars] dans wrangler.toml ou de
+# `wrangler secret put`.
+
+FIREBASE_PROJECT_ID=
+RESET_TIMEZONE=Europe/Paris
+ALLOWED_ORIGIN=http://localhost:3000

@@ -9,6 +9,7 @@
     "build": "next build"
   },
   "dependencies": {
+    "@sges/api-contract": "*",
     "@sges/i18n": "*",
     "firebase": "^11.10.0",
     "i18next": "^26.3.1",

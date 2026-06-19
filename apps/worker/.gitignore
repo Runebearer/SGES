@@ -1,0 +1,7 @@
+# Secrets locaux wrangler dev
+.dev.vars
+# Jamais commiter de credentials Cloudflare
+.cf-token
+# Cache / build wrangler
+.wrangler/
+.dryrun/

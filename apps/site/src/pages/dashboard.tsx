@@ -83,7 +83,7 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
 export default function Dashboard() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, authLevel, loading, signOut } = useAuth();
+  const { user, authLevel, energy, loading, signOut } = useAuth();
 
   const [active, setActive] = useState<SectionId>('dashboard');
 
@@ -91,9 +91,9 @@ export default function Dashboard() {
   // dès qu'une alerte arrive. TODO: brancher sur le flux d'alertes (à venir).
   const hasAlert = false;
 
-  // Niveau d'énergie (0–100). Valeur réelle à brancher plus tard (fonction en
-  // cours de développement) ; null = en attente de données.
-  const energyLevel: number | null = 72;
+  // Niveau d'énergie (0–100), serveur-autoritaire via le Worker Cloudflare.
+  // null = en attente (non chargée / Worker injoignable).
+  const energyLevel: number | null = energy ? energy.value : null;
 
   // Progression d'expérience vers le niveau suivant (0–100). Le niveau affiché
   // est celui du compte (authLevel) ; le remplissage suivra les points
