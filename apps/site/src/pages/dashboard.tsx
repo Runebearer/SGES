@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
+import type { ActionDef } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
@@ -76,6 +77,113 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
       >
         <div className="energy-fill" style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  );
+}
+
+// Liste des actions (section « Missions »). Coûts/gains serveur-autoritaires :
+// le bouton est désactivé tant que le joueur ne peut pas payer, et l'exécution
+// passe par le Worker (cf. AuthContext.performAction).
+function ActionsPanel() {
+  const { t } = useTranslation('common');
+  const { player, actions, performAction } = useAuth();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<
+    { id: string; text: string; error?: boolean } | null
+  >(null);
+
+  const canAfford = (a: ActionDef) =>
+    player != null &&
+    player.energy.value >= a.cost.energy &&
+    player.electricity >= a.cost.electricity &&
+    player.artifacts >= a.cost.artifacts;
+
+  const run = async (a: ActionDef) => {
+    setBusy(a.id);
+    setFeedback(null);
+    try {
+      const res = await performAction(a.id);
+      const parts: string[] = [];
+      if (res.gained.electricity) parts.push(`+${res.gained.electricity} 🔌`);
+      if (res.gained.artifacts) parts.push(`+${res.gained.artifacts} 🏺`);
+      if (res.gained.xp) parts.push(`+${res.gained.xp} ✨`);
+      setFeedback({ id: a.id, text: parts.join('   ') || 'OK' });
+    } catch {
+      setFeedback({
+        id: a.id,
+        text: t('dashboard.actions.insufficient'),
+        error: true,
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const costParts = (a: ActionDef) => {
+    const p: string[] = [];
+    if (a.cost.energy) p.push(`${a.cost.energy} ⚡`);
+    if (a.cost.electricity) p.push(`${a.cost.electricity} 🔌`);
+    if (a.cost.artifacts) p.push(`${a.cost.artifacts} 🏺`);
+    return p.length ? p.join('  ') : '—';
+  };
+
+  const gainParts = (a: ActionDef) => {
+    const p: string[] = [];
+    if (a.gain.electricity) p.push(`+${a.gain.electricity} 🔌`);
+    if (a.gain.artifactsMax) {
+      p.push(
+        a.gain.artifactsMin === a.gain.artifactsMax
+          ? `+${a.gain.artifactsMax} 🏺`
+          : `+${a.gain.artifactsMin}–${a.gain.artifactsMax} 🏺`
+      );
+    }
+    if (a.gain.xp) p.push(`+${a.gain.xp} ✨`);
+    return p.length ? p.join('  ') : '—';
+  };
+
+  if (actions.length === 0) {
+    return (
+      <div className="panel panel-empty">
+        <p>{t('dashboard.actions.empty')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="actions-list">
+      {actions.map((a) => (
+        <div key={a.id} className="action-card">
+          <div className="action-head">
+            <h3 className="action-name">{a.name}</h3>
+            <button
+              type="button"
+              className="action-btn"
+              disabled={busy != null || !canAfford(a)}
+              onClick={() => run(a)}
+            >
+              {busy === a.id
+                ? t('dashboard.actions.running')
+                : t('dashboard.actions.launch')}
+            </button>
+          </div>
+          <p className="action-desc">{a.description}</p>
+          <div className="action-meta">
+            <span className="action-cost">
+              <em>{t('dashboard.actions.cost')}</em>
+              {costParts(a)}
+            </span>
+            <span className="action-gain">
+              <em>{t('dashboard.actions.gain')}</em>
+              {gainParts(a)}
+            </span>
+          </div>
+          {feedback?.id === a.id && (
+            <p className={`action-fb${feedback.error ? ' err' : ''}`}>
+              {feedback.text}
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -288,36 +396,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {active === 'missions' && (
-              <div className="panel panel-flush">
-                <table className="missions">
-                  <thead>
-                    <tr>
-                      <th>{t('dashboard.sections.missions.columns.code')}</th>
-                      <th>{t('dashboard.sections.missions.columns.objective')}</th>
-                      <th>{t('dashboard.sections.missions.columns.status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>SG-09</td>
-                      <td>{t('dashboard.sections.missions.items.m1')}</td>
-                      <td><span className="tag tag-active">{t('dashboard.sections.missions.status.active')}</span></td>
-                    </tr>
-                    <tr>
-                      <td>SG-14</td>
-                      <td>{t('dashboard.sections.missions.items.m2')}</td>
-                      <td><span className="tag tag-standby">{t('dashboard.sections.missions.status.standby')}</span></td>
-                    </tr>
-                    <tr>
-                      <td>SG-21</td>
-                      <td>{t('dashboard.sections.missions.items.m3')}</td>
-                      <td><span className="tag tag-done">{t('dashboard.sections.missions.status.done')}</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {active === 'missions' && <ActionsPanel />}
 
             {active === 'alert' && (
               <div className="panel panel-empty">
@@ -942,6 +1021,104 @@ export default function Dashboard() {
         .dashboard-screen .tag-active { color: #4ade80; }
         .dashboard-screen .tag-standby { color: var(--electric-bright); }
         .dashboard-screen .tag-done { color: rgba(209, 225, 248, 0.55); }
+
+        /* ---- ACTIONS (missions) ---- */
+        .dashboard-screen .actions-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+          gap: 18px;
+          max-width: 980px;
+        }
+
+        .dashboard-screen .action-card {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 22px 24px;
+          background: var(--panel-bg);
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(37, 99, 255, 0.3);
+          border-left: 4px solid var(--electric);
+          clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+        }
+
+        .dashboard-screen .action-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .dashboard-screen .action-name {
+          font-family: 'Allerta Stencil', sans-serif;
+          font-size: 1.1rem;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+          margin: 0;
+        }
+
+        .dashboard-screen .action-btn {
+          flex-shrink: 0;
+          font-family: 'Segoe UI', Roboto, sans-serif;
+          font-size: 0.72rem;
+          font-weight: bold;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: #fff;
+          background: var(--electric-deep);
+          border: 1px solid var(--electric);
+          padding: 8px 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .dashboard-screen .action-btn:hover:not(:disabled) {
+          background: var(--electric);
+          box-shadow: 0 0 14px rgba(37, 99, 255, 0.6);
+        }
+
+        .dashboard-screen .action-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .dashboard-screen .action-desc {
+          font-size: 0.86rem;
+          line-height: 1.5;
+          color: var(--text-main);
+          opacity: 0.85;
+          margin: 0;
+        }
+
+        .dashboard-screen .action-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 20px;
+          font-family: monospace;
+          font-size: 0.82rem;
+        }
+
+        .dashboard-screen .action-meta em {
+          font-style: normal;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          font-size: 0.64rem;
+          opacity: 0.55;
+          margin-right: 8px;
+        }
+
+        .dashboard-screen .action-cost { color: #fca5a5; }
+        .dashboard-screen .action-gain { color: #4ade80; }
+
+        .dashboard-screen .action-fb {
+          margin: 0;
+          font-family: monospace;
+          font-size: 0.85rem;
+          letter-spacing: 1px;
+          color: #4ade80;
+        }
+        .dashboard-screen .action-fb.err { color: #fca5a5; }
 
         /* ===== RESPONSIVE / MOBILE ===== */
         @media (max-width: 760px) {

@@ -4,7 +4,12 @@
 // jamais les ressources lui-même. Les types viennent de @sges/api-contract
 // (importés en `type`, effacés du bundle).
 
-import type { PlayerState, SpendEnergyResponse } from '@sges/api-contract';
+import type {
+  PlayerState,
+  SpendEnergyResponse,
+  ActionDef,
+  PerformActionResult,
+} from '@sges/api-contract';
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL;
 
@@ -71,4 +76,41 @@ export async function spendEnergy(
     throw new PlayerClientError('spend_energy_failed', res.status);
   }
   return (await res.json()) as SpendEnergyResponse;
+}
+
+/** Récupère le catalogue des actions (coûts, gains, descriptions). */
+export async function fetchActions(
+  getToken: () => Promise<string>
+): Promise<ActionDef[]> {
+  const token = await getToken();
+  const res = await fetch(`${baseUrl()}/actions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new PlayerClientError('fetch_actions_failed', res.status);
+  }
+  return (await res.json()) as ActionDef[];
+}
+
+/**
+ * Exécute une action. Lève une PlayerClientError de status 402 si les
+ * ressources sont insuffisantes (les coûts/gains sont validés côté Worker).
+ */
+export async function performAction(
+  getToken: () => Promise<string>,
+  actionId: string
+): Promise<PerformActionResult> {
+  const token = await getToken();
+  const res = await fetch(`${baseUrl()}/action/${encodeURIComponent(actionId)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.status === 402) {
+    throw new PlayerClientError('insufficient_resources', 402);
+  }
+  if (!res.ok) {
+    throw new PlayerClientError('perform_action_failed', res.status);
+  }
+  return (await res.json()) as PerformActionResult;
 }

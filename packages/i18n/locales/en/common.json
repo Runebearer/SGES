@@ -49,6 +49,14 @@
       "label": "Experience",
       "level": "Lvl {{level}}"
     },
+    "actions": {
+      "launch": "Launch",
+      "running": "Running…",
+      "insufficient": "Insufficient resources",
+      "cost": "Cost",
+      "gain": "Reward",
+      "empty": "No action available."
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",

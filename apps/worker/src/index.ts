@@ -4,13 +4,16 @@
 //   GET  /state         → état complet du joueur (énergie, électricité, artefacts, xp)
 //   GET  /energy        → énergie seule (alias de compatibilité)
 //   POST /energy/spend  → dépense de l'énergie pour une action
+//   GET  /actions       → catalogue des actions (coûts, gains, descriptions)
+//   POST /action/{id}   → exécute une action (coûts/gains serveur-autoritaires)
 //
 // Auth : en-tête `Authorization: Bearer <ID token Firebase>`, vérifié en
 // WebCrypto (cf. auth.ts). L'uid Firebase sert de clé KV.
 
 import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
-import { getState, spendEnergy } from './state';
+import { getState, spendEnergy, performAction } from './state';
+import { ACTIONS } from './actions';
 
 export interface Env {
   ENERGY_KV: KVNamespace;
@@ -112,6 +115,36 @@ export default {
         );
       }
       return json({ ...result.state.energy, spent: amount }, 200, cors);
+    }
+
+    // --- GET /actions (catalogue) --------------------------------------------
+    if (request.method === 'GET' && url.pathname === '/actions') {
+      return json(ACTIONS, 200, cors);
+    }
+
+    // --- POST /action/{id} ---------------------------------------------------
+    if (request.method === 'POST' && url.pathname.startsWith('/action/')) {
+      const actionId = decodeURIComponent(
+        url.pathname.slice('/action/'.length)
+      );
+      const result = await performAction(env, uid, actionId);
+      if (!result.ok && result.reason === 'unknown_action') {
+        return json({ error: 'unknown_action' }, 404, cors);
+      }
+      if (!result.ok && result.reason === 'insufficient') {
+        return json(
+          {
+            error: 'insufficient_resources',
+            cost: result.cost,
+            have: result.have,
+          },
+          402,
+          cors
+        );
+      }
+      if (result.ok) {
+        return json(result.result, 200, cors);
+      }
     }
 
     return json({ error: 'not_found' }, 404, cors);

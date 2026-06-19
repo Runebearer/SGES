@@ -72,3 +72,54 @@ export interface EnergyError {
   available?: number;
   required?: number;
 }
+
+// === Actions =================================================================
+
+/** Coût d'une action (déduit des ressources du joueur). */
+export interface ActionCost {
+  energy: number;
+  electricity: number;
+  artifacts: number;
+}
+
+/** Gains d'une action (ajoutés aux ressources ; artefacts = tirage aléatoire). */
+export interface ActionGain {
+  electricity: number;
+  artifactsMin: number;
+  artifactsMax: number;
+  xp: number;
+}
+
+/**
+ * Définition d'une action du catalogue (serveur-autoritaire, exposée par
+ * `GET /actions`). `requiredLevel` et `requiredAddressStatus` sont conservés
+ * comme données mais NE SONT PAS encore appliqués (systèmes d'XP/niveau et
+ * d'adresses à venir).
+ */
+export interface ActionDef {
+  id: string;
+  name: string;
+  requiredLevel: number;
+  requiredAddressStatus: string | null;
+  cost: ActionCost;
+  gain: ActionGain;
+  description: string;
+}
+
+/** Réponse de `POST /action/{id}` en cas de succès. */
+export interface PerformActionResult {
+  /** État joueur à jour après l'action. */
+  state: PlayerState;
+  /** Identifiant de l'action effectuée. */
+  actionId: string;
+  /** Gains réellement appliqués (artefacts = valeur tirée dans [min, max]). */
+  gained: { electricity: number; artifacts: number; xp: number };
+}
+
+/** Réponse d'erreur d'une action. */
+export interface ActionError {
+  error: string;
+  /** Présents pour 402 (ressources insuffisantes). */
+  cost?: ActionCost;
+  have?: { energy: number; electricity: number; artifacts: number };
+}

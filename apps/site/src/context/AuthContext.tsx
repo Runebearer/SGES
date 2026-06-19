@@ -3,14 +3,24 @@ import type { ReactNode } from 'react';
 import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import type { PlayerState, SpendEnergyResponse } from '@sges/api-contract';
+import type {
+  PlayerState,
+  SpendEnergyResponse,
+  ActionDef,
+  PerformActionResult,
+} from '@sges/api-contract';
 import { auth, db } from '../firebase';
 import {
   DEFAULT_AUTH_LEVEL,
   normalizeAuthLevel,
   type AuthLevel,
 } from '../lib/authLevels';
-import { fetchPlayerState, spendEnergy as spendEnergyApi } from '../lib/playerClient';
+import {
+  fetchPlayerState,
+  fetchActions,
+  performAction as performActionApi,
+  spendEnergy as spendEnergyApi,
+} from '../lib/playerClient';
 
 type AuthContextValue = {
   user: User | null;
@@ -18,22 +28,30 @@ type AuthContextValue = {
   authLevel: AuthLevel | null;
   // État joueur serveur-autoritaire (null tant que non connecté / non chargé).
   player: PlayerState | null;
+  // Catalogue des actions (vide tant que non chargé).
+  actions: ActionDef[];
   loading: boolean;
   signOut: () => Promise<void>;
   // Recharge l'état joueur depuis le Worker.
   refreshPlayer: () => Promise<void>;
   // Dépense de l'énergie pour une action ; met à jour l'énergie du joueur.
   spendEnergy: (amount?: number, action?: string) => Promise<SpendEnergyResponse>;
+  // Exécute une action du catalogue ; met à jour tout l'état joueur.
+  performAction: (actionId: string) => Promise<PerformActionResult>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   authLevel: null,
   player: null,
+  actions: [],
   loading: true,
   signOut: async () => {},
   refreshPlayer: async () => {},
   spendEnergy: async () => {
+    throw new Error('not_authenticated');
+  },
+  performAction: async () => {
     throw new Error('not_authenticated');
   },
 });
@@ -42,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLevel, setAuthLevel] = useState<AuthLevel | null>(null);
   const [player, setPlayer] = useState<PlayerState | null>(null);
+  const [actions, setActions] = useState<ActionDef[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,17 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthLevel(DEFAULT_AUTH_LEVEL);
         }
 
-        // Charge l'état joueur depuis le Worker (serveur-autoritaire). Tolère
-        // l'échec (Worker non déployé / NEXT_PUBLIC_WORKER_URL absent) :
-        // les jauges s'afficheront « en attente ».
+        // Charge l'état joueur + le catalogue d'actions depuis le Worker
+        // (serveur-autoritaire). Tolère l'échec (Worker non déployé /
+        // NEXT_PUBLIC_WORKER_URL absent) : jauges « en attente », pas d'actions.
         try {
           setPlayer(await fetchPlayerState(() => u.getIdToken()));
         } catch {
           setPlayer(null);
         }
+        try {
+          setActions(await fetchActions(() => u.getIdToken()));
+        } catch {
+          setActions([]);
+        }
       } else {
         setAuthLevel(null);
         setPlayer(null);
+        setActions([]);
       }
 
       setLoading(false);
@@ -113,16 +138,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res;
   };
 
+  const performAction = async (
+    actionId: string
+  ): Promise<PerformActionResult> => {
+    const u = auth.currentUser;
+    if (!u) throw new Error('not_authenticated');
+    const res = await performActionApi(() => u.getIdToken(), actionId);
+    // La réponse porte l'état joueur complet à jour : on le remplace.
+    setPlayer(res.state);
+    return res;
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         authLevel,
         player,
+        actions,
         loading,
         signOut,
         refreshPlayer,
         spendEnergy,
+        performAction,
       }}
     >
       {children}

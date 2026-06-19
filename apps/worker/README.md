@@ -17,7 +17,21 @@ Worker) :
 | ------- | ---------------- | ------------------------------------------------------ |
 | `GET`   | `/state`         | État complet du joueur (recharge d'énergie appliquée). |
 | `GET`   | `/energy`        | Énergie seule (alias de compatibilité).                |
-| `POST`  | `/energy/spend`  | Dépense de l'énergie pour une action.                  |
+| `POST`  | `/energy/spend`  | Dépense d'énergie générique.                           |
+| `GET`   | `/actions`       | Catalogue des actions (coûts, gains, descriptions).    |
+| `POST`  | `/action/{id}`   | Exécute une action (coûts/gains serveur-autoritaires). |
+
+### Actions
+
+Le catalogue est défini dans [`src/actions.ts`](src/actions.ts) (source unique des
+coûts/gains). `POST /action/{id}` vérifie les coûts, applique coûts + gains
+(artefacts = tirage aléatoire `[min, max]`, électricité/artefacts plafonnés),
+écrit l'état et renvoie le nouveau `PlayerState` + les gains. Ressources
+insuffisantes → **402** `{ error: "insufficient_resources", cost, have }`.
+
+`requiredLevel` et `requiredAddressStatus` sont **conservés comme données mais
+pas encore appliqués** (systèmes d'XP/niveau et d'adresses à venir). Toutes les
+actions sont actuellement répétables.
 
 Toutes les routes exigent un en-tête `Authorization: Bearer <ID token Firebase>`.
 Le token est vérifié dans le Worker (signature RS256 en WebCrypto contre les

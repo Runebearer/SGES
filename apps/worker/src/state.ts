@@ -19,7 +19,10 @@ import {
   MAX_ELECTRICITY,
   MAX_ARTIFACTS,
   type PlayerState,
+  type ActionCost,
+  type PerformActionResult,
 } from '@sges/api-contract';
+import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
 
 interface StoredEnergy {
@@ -176,4 +179,79 @@ export async function spendEnergy(
   };
   await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));
   return { ok: true, state: toState(updated, env) };
+}
+
+// Tirage entier uniforme dans [min, max] (bornes incluses).
+function randInt(min: number, max: number): number {
+  const lo = Math.max(0, Math.floor(min));
+  const hi = Math.max(lo, Math.floor(max));
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+export type ActionResult =
+  | { ok: true; result: PerformActionResult }
+  | { ok: false; reason: 'unknown_action' }
+  | {
+      ok: false;
+      reason: 'insufficient';
+      cost: ActionCost;
+      have: { energy: number; electricity: number; artifacts: number };
+    };
+
+/**
+ * Exécute une action du catalogue : vérifie les coûts, applique coûts et gains
+ * (artefacts = tirage aléatoire), écrit l'état. Échoue sans débit si les
+ * ressources sont insuffisantes. `requiredLevel` / `requiredAddressStatus` ne
+ * sont volontairement PAS encore vérifiés (systèmes à venir).
+ */
+export async function performAction(
+  env: Env,
+  uid: string,
+  actionId: string
+): Promise<ActionResult> {
+  const def = ACTIONS_BY_ID[actionId];
+  if (!def) return { ok: false, reason: 'unknown_action' };
+
+  const today = dayInTz(new Date(), tz(env));
+  const stored = await load(env, uid, today);
+  const have = {
+    energy: stored.energy.value,
+    electricity: stored.electricity,
+    artifacts: stored.artifacts,
+  };
+
+  if (
+    have.energy < def.cost.energy ||
+    have.electricity < def.cost.electricity ||
+    have.artifacts < def.cost.artifacts
+  ) {
+    return { ok: false, reason: 'insufficient', cost: def.cost, have };
+  }
+
+  const gained = {
+    electricity: def.gain.electricity,
+    artifacts: randInt(def.gain.artifactsMin, def.gain.artifactsMax),
+    xp: def.gain.xp,
+  };
+
+  const updated: StoredPlayer = {
+    energy: { value: stored.energy.value - def.cost.energy, day: today },
+    electricity: clamp(
+      stored.electricity - def.cost.electricity + gained.electricity,
+      0,
+      MAX_ELECTRICITY
+    ),
+    artifacts: clamp(
+      stored.artifacts - def.cost.artifacts + gained.artifacts,
+      0,
+      MAX_ARTIFACTS
+    ),
+    xp: Math.max(0, stored.xp + gained.xp),
+  };
+  await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));
+
+  return {
+    ok: true,
+    result: { state: toState(updated, env), actionId, gained },
+  };
 }

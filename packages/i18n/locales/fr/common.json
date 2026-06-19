@@ -49,6 +49,14 @@
       "label": "Expérience",
       "level": "Niv. {{level}}"
     },
+    "actions": {
+      "launch": "Lancer",
+      "running": "En cours…",
+      "insufficient": "Ressources insuffisantes",
+      "cost": "Coût",
+      "gain": "Gain",
+      "empty": "Aucune action disponible."
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
