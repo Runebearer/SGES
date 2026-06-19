@@ -6,6 +6,12 @@
 /** Énergie maximale : jauge pleine. Exprimée sur 0–100 (donc = pourcentage). */
 export const MAX_ENERGY = 100;
 
+/** Électricité maximale stockable (jauge plafonnée). */
+export const MAX_ELECTRICITY = 100;
+
+/** Nombre maximal d'artefacts collectables. */
+export const MAX_ARTIFACTS = 30;
+
 /**
  * Coût en énergie d'une action quand le client n'en précise pas.
  * Avec MAX_ENERGY = 100, un coût de 10 autorise 10 actions par jour.
@@ -22,6 +28,27 @@ export interface EnergyState {
   day: string;
   /** Instant ISO de la prochaine remise à plein (minuit suivant). */
   resetsAt: string;
+}
+
+/**
+ * État complet d'un joueur, renvoyé par `GET /state`. Toutes les ressources
+ * sont serveur-autoritaires (stockées en KV, écrites uniquement par le Worker).
+ */
+export interface PlayerState {
+  /** Énergie : recharge quotidienne à 100 % (cf. EnergyState). */
+  energy: EnergyState;
+  /**
+   * Électricité stockée, 0–MAX_ELECTRICITY. Plafonnée mais SANS recharge
+   * quotidienne : gagnée via une mécanique de jeu à définir ultérieurement.
+   */
+  electricity: number;
+  /** Nombre d'artefacts collectés (0–MAX_ARTIFACTS). */
+  artifacts: number;
+  /**
+   * Points d'expérience (accumulateur ≥ 0). Le niveau d'habilitation
+   * (authLevel) reste géré séparément dans Firestore : aucun lien automatique.
+   */
+  xp: number;
 }
 
 /** Corps de `POST /energy/spend`. */

@@ -3,36 +3,36 @@ import type { ReactNode } from 'react';
 import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import type { EnergyState } from '@sges/api-contract';
+import type { PlayerState, SpendEnergyResponse } from '@sges/api-contract';
 import { auth, db } from '../firebase';
 import {
   DEFAULT_AUTH_LEVEL,
   normalizeAuthLevel,
   type AuthLevel,
 } from '../lib/authLevels';
-import { fetchEnergy, spendEnergy as spendEnergyApi } from '../lib/energyClient';
+import { fetchPlayerState, spendEnergy as spendEnergyApi } from '../lib/playerClient';
 
 type AuthContextValue = {
   user: User | null;
   // Niveau d'habilitation de l'utilisateur (null tant que non connecté).
   authLevel: AuthLevel | null;
-  // Énergie serveur-autoritaire (null tant que non connecté ou non chargée).
-  energy: EnergyState | null;
+  // État joueur serveur-autoritaire (null tant que non connecté / non chargé).
+  player: PlayerState | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  // Recharge l'état d'énergie depuis le Worker.
-  refreshEnergy: () => Promise<void>;
-  // Dépense de l'énergie pour une action ; renvoie le nouvel état.
-  spendEnergy: (amount?: number, action?: string) => Promise<EnergyState>;
+  // Recharge l'état joueur depuis le Worker.
+  refreshPlayer: () => Promise<void>;
+  // Dépense de l'énergie pour une action ; met à jour l'énergie du joueur.
+  spendEnergy: (amount?: number, action?: string) => Promise<SpendEnergyResponse>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   authLevel: null,
-  energy: null,
+  player: null,
   loading: true,
   signOut: async () => {},
-  refreshEnergy: async () => {},
+  refreshPlayer: async () => {},
   spendEnergy: async () => {
     throw new Error('not_authenticated');
   },
@@ -41,7 +41,7 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLevel, setAuthLevel] = useState<AuthLevel | null>(null);
-  const [energy, setEnergy] = useState<EnergyState | null>(null);
+  const [player, setPlayer] = useState<PlayerState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,17 +59,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthLevel(DEFAULT_AUTH_LEVEL);
         }
 
-        // Charge l'énergie depuis le Worker (serveur-autoritaire). Tolère
+        // Charge l'état joueur depuis le Worker (serveur-autoritaire). Tolère
         // l'échec (Worker non déployé / NEXT_PUBLIC_WORKER_URL absent) :
-        // la jauge s'affichera « en attente ».
+        // les jauges s'afficheront « en attente ».
         try {
-          setEnergy(await fetchEnergy(() => u.getIdToken()));
+          setPlayer(await fetchPlayerState(() => u.getIdToken()));
         } catch {
-          setEnergy(null);
+          setPlayer(null);
         }
       } else {
         setAuthLevel(null);
-        setEnergy(null);
+        setPlayer(null);
       }
 
       setLoading(false);
@@ -79,25 +79,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = () => fbSignOut(auth);
 
-  const refreshEnergy = async () => {
+  const refreshPlayer = async () => {
     const u = auth.currentUser;
     if (!u) return;
     try {
-      setEnergy(await fetchEnergy(() => u.getIdToken()));
+      setPlayer(await fetchPlayerState(() => u.getIdToken()));
     } catch {
-      setEnergy(null);
+      setPlayer(null);
     }
   };
 
   const spendEnergy = async (
     amount?: number,
     action?: string
-  ): Promise<EnergyState> => {
+  ): Promise<SpendEnergyResponse> => {
     const u = auth.currentUser;
     if (!u) throw new Error('not_authenticated');
-    const state = await spendEnergyApi(() => u.getIdToken(), amount, action);
-    setEnergy(state);
-    return state;
+    const res = await spendEnergyApi(() => u.getIdToken(), amount, action);
+    // La réponse porte l'énergie à jour : on la fusionne dans l'état joueur.
+    setPlayer((prev) =>
+      prev
+        ? {
+            ...prev,
+            energy: {
+              value: res.value,
+              max: res.max,
+              day: res.day,
+              resetsAt: res.resetsAt,
+            },
+          }
+        : prev
+    );
+    return res;
   };
 
   return (
@@ -105,10 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         authLevel,
-        energy,
+        player,
         loading,
         signOut,
-        refreshEnergy,
+        refreshPlayer,
         spendEnergy,
       }}
     >

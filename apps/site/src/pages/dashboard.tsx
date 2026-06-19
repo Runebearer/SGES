@@ -83,7 +83,7 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
 export default function Dashboard() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, authLevel, energy, loading, signOut, refreshEnergy } = useAuth();
+  const { user, authLevel, player, loading, signOut, refreshPlayer } = useAuth();
 
   const [active, setActive] = useState<SectionId>('dashboard');
 
@@ -91,14 +91,13 @@ export default function Dashboard() {
   // dès qu'une alerte arrive. TODO: brancher sur le flux d'alertes (à venir).
   const hasAlert = false;
 
-  // Niveau d'énergie (0–100), serveur-autoritaire via le Worker Cloudflare.
-  // null = en attente (non chargée / Worker injoignable).
-  const energyLevel: number | null = energy ? energy.value : null;
+  // Ressources serveur-autoritaires (Worker Cloudflare). null = en attente
+  // (non chargées / Worker injoignable).
+  const energyLevel: number | null = player ? player.energy.value : null;
 
-  // Progression d'expérience vers le niveau suivant (0–100). Le niveau affiché
-  // est celui du compte (authLevel) ; le remplissage suivra les points
-  // d'expérience gagnés. TODO: brancher sur les points d'XP (à venir).
-  const xp: number | null = 45;
+  // Progression d'expérience (0–100), accumulée côté Worker. Le niveau affiché
+  // reste celui du compte (authLevel, Firestore) : pas de lien automatique.
+  const xp: number | null = player ? player.xp : null;
   const xpPct = xp == null ? 0 : Math.max(0, Math.min(100, xp));
 
   // Route réservée : renvoie vers le login si non authentifié.
@@ -108,15 +107,15 @@ export default function Dashboard() {
     }
   }, [loading, user, router]);
 
-  // Rafraîchit l'énergie (serveur-autoritaire) à l'entrée de la section
+  // Rafraîchit l'état joueur (serveur-autoritaire) à l'entrée de la section
   // « Missions » : c'est là que le joueur dépense de l'énergie, on veut donc
-  // une valeur à jour (recharge quotidienne incluse) sans attendre un
-  // rechargement de page. refreshEnergy est hors deps (identité instable) :
+  // des valeurs à jour (recharge quotidienne incluse) sans attendre un
+  // rechargement de page. refreshPlayer est hors deps (identité instable) :
   // on ne déclenche qu'au changement de section.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (user && active === 'missions') {
-      refreshEnergy();
+      refreshPlayer();
     }
   }, [active, user]);
 
@@ -262,15 +261,19 @@ export default function Dashboard() {
 
                 <div className="cards-grid">
                   <div className="stat">
-                    {/* Valeur réelle à venir. */}
-                    <span className="stat-value">—</span>
+                    {/* Électricité stockée (0–100), gain via mécanique à venir. */}
+                    <span className="stat-value">
+                      {player ? player.electricity : '—'}
+                    </span>
                     <span className="stat-label">
                       {t('dashboard.sections.dashboard.cards.electricity')}
                     </span>
                   </div>
                   <div className="stat">
-                    {/* Valeur réelle à venir. */}
-                    <span className="stat-value">—</span>
+                    {/* Compteur d'artefacts collectés. */}
+                    <span className="stat-value">
+                      {player ? player.artifacts : '—'}
+                    </span>
                     <span className="stat-label">
                       {t('dashboard.sections.dashboard.cards.artifacts')}
                     </span>

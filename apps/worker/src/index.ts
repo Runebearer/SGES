@@ -1,7 +1,8 @@
-// Worker Cloudflare SGES — ressource « énergie » serveur-autoritaire.
+// Worker Cloudflare SGES — état joueur serveur-autoritaire.
 //
 // Routes :
-//   GET  /energy        → état d'énergie courant (recharge quotidienne appliquée)
+//   GET  /state         → état complet du joueur (énergie, électricité, artefacts, xp)
+//   GET  /energy        → énergie seule (alias de compatibilité)
 //   POST /energy/spend  → dépense de l'énergie pour une action
 //
 // Auth : en-tête `Authorization: Bearer <ID token Firebase>`, vérifié en
@@ -9,7 +10,7 @@
 
 import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
-import { getEnergy, spendEnergy } from './energy';
+import { getState, spendEnergy } from './state';
 
 export interface Env {
   ENERGY_KV: KVNamespace;
@@ -74,9 +75,14 @@ export default {
       return json({ error: 'invalid_token' }, 401, cors);
     }
 
-    // --- GET /energy ---------------------------------------------------------
+    // --- GET /state ----------------------------------------------------------
+    if (request.method === 'GET' && url.pathname === '/state') {
+      return json(await getState(env, uid), 200, cors);
+    }
+
+    // --- GET /energy (alias de compatibilité : énergie seule) ----------------
     if (request.method === 'GET' && url.pathname === '/energy') {
-      return json(await getEnergy(env, uid), 200, cors);
+      return json((await getState(env, uid)).energy, 200, cors);
     }
 
     // --- POST /energy/spend --------------------------------------------------
@@ -105,7 +111,7 @@ export default {
           cors
         );
       }
-      return json({ ...result.state, spent: amount }, 200, cors);
+      return json({ ...result.state.energy, spent: amount }, 200, cors);
     }
 
     return json({ error: 'not_found' }, 404, cors);

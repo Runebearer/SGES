@@ -1,14 +1,22 @@
-# @sges/worker — Worker énergie (Cloudflare)
+# @sges/worker — Worker état joueur (Cloudflare)
 
-Backend serveur-autoritaire de la ressource **énergie** d'un opérateur.
-La jauge contrôle le nombre d'actions par jour et se **recharge à 100 % chaque
-jour à minuit** (fuseau configurable).
+Backend serveur-autoritaire des **ressources** d'un opérateur, consolidées dans
+un seul document KV par utilisateur (`player:{uid}`, écrit uniquement par le
+Worker) :
+
+| Ressource     | Comportement                                                        |
+| ------------- | ------------------------------------------------------------------- |
+| `energy`      | 0–100, **recharge à 100 % chaque jour à minuit** (fuseau configurable). |
+| `electricity` | 0–100, plafonnée mais **sans** recharge quotidienne (gain à venir). |
+| `artifacts`   | Compteur 0–30 (plafonné).                                           |
+| `xp`          | Accumulateur ≥ 0 ; le niveau (`authLevel`) reste dans Firestore.    |
 
 ## Routes
 
 | Méthode | Chemin           | Description                                            |
 | ------- | ---------------- | ------------------------------------------------------ |
-| `GET`   | `/energy`        | État courant (recharge quotidienne appliquée).         |
+| `GET`   | `/state`         | État complet du joueur (recharge d'énergie appliquée). |
+| `GET`   | `/energy`        | Énergie seule (alias de compatibilité).                |
 | `POST`  | `/energy/spend`  | Dépense de l'énergie pour une action.                  |
 
 Toutes les routes exigent un en-tête `Authorization: Bearer <ID token Firebase>`.
@@ -28,11 +36,12 @@ Firebase Admin SDK.
 
 ## Recharge « à minuit »
 
-Pas de tâche planifiée (cron). Chaque enregistrement KV mémorise le jour de la
-dernière remise à plein dans le fuseau `RESET_TIMEZONE`. Au premier accès d'un
-nouveau jour, la jauge repasse à `MAX_ENERGY`. Comportement observable identique
-à un cron de minuit, mais par-utilisateur et fiable en serverless (pas besoin
-d'itérer toutes les clés KV).
+Pas de tâche planifiée (cron). L'énergie effective est **recalculée à la
+lecture** : chaque enregistrement KV mémorise le jour de la dernière dépense
+(fuseau `RESET_TIMEZONE`) ; si ce jour n'est pas aujourd'hui, la jauge vaut
+`MAX_ENERGY`. Conséquence : **`GET` n'écrit jamais en KV** ; seule une dépense
+(`POST /energy/spend`) écrit. Comportement observable identique à un cron de
+minuit, mais par-utilisateur et fiable en serverless.
 
 ## Configuration & déploiement
 

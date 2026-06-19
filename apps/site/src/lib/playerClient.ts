@@ -1,15 +1,15 @@
-// Client de la ressource « énergie » exposée par le Worker Cloudflare.
+// Client de l'état joueur serveur-autoritaire exposé par le Worker Cloudflare.
 //
-// L'énergie est serveur-autoritaire : le client se contente de lire l'état et
-// de demander des dépenses ; il n'écrit jamais la valeur lui-même. Les types
-// viennent de @sges/api-contract (importés en `type`, effacés du bundle).
+// Le client se contente de lire l'état et de demander des dépenses ; il n'écrit
+// jamais les ressources lui-même. Les types viennent de @sges/api-contract
+// (importés en `type`, effacés du bundle).
 
-import type { EnergyState, SpendEnergyResponse } from '@sges/api-contract';
+import type { PlayerState, SpendEnergyResponse } from '@sges/api-contract';
 
 const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL;
 
-/** Erreur réseau/applicative du client énergie (porte le code HTTP). */
-export class EnergyClientError extends Error {
+/** Erreur réseau/applicative du client (porte le code HTTP). */
+export class PlayerClientError extends Error {
   constructor(
     message: string,
     readonly status: number,
@@ -17,35 +17,35 @@ export class EnergyClientError extends Error {
     readonly available?: number
   ) {
     super(message);
-    this.name = 'EnergyClientError';
+    this.name = 'PlayerClientError';
   }
 }
 
 function baseUrl(): string {
   if (!WORKER_URL) {
     throw new Error(
-      'NEXT_PUBLIC_WORKER_URL non défini : impossible de joindre le Worker énergie.'
+      'NEXT_PUBLIC_WORKER_URL non défini : impossible de joindre le Worker.'
     );
   }
   return WORKER_URL.replace(/\/$/, '');
 }
 
-/** Récupère l'état d'énergie courant. */
-export async function fetchEnergy(
+/** Récupère l'état complet du joueur (énergie, électricité, artefacts, xp). */
+export async function fetchPlayerState(
   getToken: () => Promise<string>
-): Promise<EnergyState> {
+): Promise<PlayerState> {
   const token = await getToken();
-  const res = await fetch(`${baseUrl()}/energy`, {
+  const res = await fetch(`${baseUrl()}/state`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
-    throw new EnergyClientError('fetch_energy_failed', res.status);
+    throw new PlayerClientError('fetch_state_failed', res.status);
   }
-  return (await res.json()) as EnergyState;
+  return (await res.json()) as PlayerState;
 }
 
 /**
- * Demande la dépense d'énergie pour une action. Lève une EnergyClientError de
+ * Demande la dépense d'énergie pour une action. Lève une PlayerClientError de
  * status 402 (avec `available`) si le solde est insuffisant.
  */
 export async function spendEnergy(
@@ -65,10 +65,10 @@ export async function spendEnergy(
 
   if (res.status === 402) {
     const body = (await res.json().catch(() => ({}))) as { available?: number };
-    throw new EnergyClientError('insufficient_energy', 402, body.available);
+    throw new PlayerClientError('insufficient_energy', 402, body.available);
   }
   if (!res.ok) {
-    throw new EnergyClientError('spend_energy_failed', res.status);
+    throw new PlayerClientError('spend_energy_failed', res.status);
   }
   return (await res.json()) as SpendEnergyResponse;
 }
