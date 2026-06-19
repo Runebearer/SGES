@@ -69,7 +69,12 @@ export default function Home() {
         <div className="gate">
           <StargateRing />
           <div className="gate-cta">
-            <Link href="/login" className="btn">{t('hero.cta')}</Link>
+            {/* Connecté : accès direct au dashboard (SGC-F). Sinon : connexion. */}
+            {user ? (
+              <Link href="/dashboard" className="btn">{t('hero.cta_dashboard')}</Link>
+            ) : (
+              <Link href="/login" className="btn">{t('hero.cta')}</Link>
+            )}
           </div>
         </div>
       </section>

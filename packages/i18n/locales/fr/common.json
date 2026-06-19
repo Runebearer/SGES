@@ -7,7 +7,8 @@
   },
   "hero": {
     "subtitle": "Plateforme d'exploration spatiale : extrayez, analysez et synchronisez vos données de mission à travers la galaxie.",
-    "cta": "Lancer la mission"
+    "cta": "Lancer la mission",
+    "cta_dashboard": "Accéder au SGC-F"
   },
   "features": {
     "extraction": {

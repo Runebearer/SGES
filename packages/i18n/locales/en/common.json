@@ -7,7 +7,8 @@
   },
   "hero": {
     "subtitle": "Space exploration platform: extract, analyze and synchronize your mission data across the galaxy.",
-    "cta": "Launch mission"
+    "cta": "Launch mission",
+    "cta_dashboard": "Access SGC-F"
   },
   "features": {
     "extraction": {
