@@ -1,22 +1,25 @@
-// Niveaux d'habilitation (clearance level) attribués aux opérateurs.
-// Stockés dans Firestore (users/{uid}.authLevel) et exposés via AuthContext
-// pour personnaliser l'affichage du site (ex. afficher un panneau si niveau >= 3).
+// Habilitations (clearance level) d'un opérateur. Le niveau est DÉRIVÉ de l'XP
+// côté Worker (cf. apps/worker/src/state.ts) et exposé via AuthContext pour
+// personnaliser l'affichage (badge, panneaux réservés…).
 //
-// ⚠️ Sécurité : ce niveau sert UNIQUEMENT à la personnalisation d'affichage côté
-// client. Il ne protège rien en soi — toute donnée réellement sensible doit être
-// gardée par des Firestore Security Rules côté serveur, pas par ce champ.
+// ⚠️ La plage [MIN_AUTH_LEVEL, MAX_AUTH_LEVEL] doit rester alignée avec
+// MAX_LEVEL du Worker, sinon un niveau hors plage serait ramené ci-dessous.
 
-export const AUTH_LEVELS = [1, 2, 3, 4, 5] as const;
+export const MIN_AUTH_LEVEL = 1;
+export const MAX_AUTH_LEVEL = 100;
 
-export type AuthLevel = (typeof AUTH_LEVELS)[number];
+export type AuthLevel = number;
 
-// Niveau attribué à tout nouvel inscrit.
-export const DEFAULT_AUTH_LEVEL: AuthLevel = 1;
+// Niveau attribué par défaut (nouvel opérateur, ou valeur absente/corrompue).
+export const DEFAULT_AUTH_LEVEL: AuthLevel = MIN_AUTH_LEVEL;
 
-// Garde-fou : renvoie un AuthLevel valide à partir d'une valeur Firestore
-// potentiellement absente ou corrompue (vieux comptes, écriture partielle…).
+// Garde-fou : renvoie un niveau valide (entier borné MIN..MAX) à partir d'une
+// valeur potentiellement absente ou corrompue.
 export function normalizeAuthLevel(value: unknown): AuthLevel {
-  return (AUTH_LEVELS as readonly number[]).includes(value as number)
-    ? (value as AuthLevel)
-    : DEFAULT_AUTH_LEVEL;
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    return DEFAULT_AUTH_LEVEL;
+  }
+  if (value < MIN_AUTH_LEVEL) return MIN_AUTH_LEVEL;
+  if (value > MAX_AUTH_LEVEL) return MAX_AUTH_LEVEL;
+  return value;
 }

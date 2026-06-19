@@ -14,10 +14,15 @@ Worker) :
 
 ### Niveaux (dérivés de l'XP)
 
-Le niveau est calculé à partir de l'XP cumulée (`src/state.ts`, source unique) :
-seuil du niveau N = `round(100 * (N - 2)^1.5 + 100)` pour N ≥ 2, niveau 1 = 0.
-Paliers : L1=0, L2=100, L3=200, L4=383, L5=620 (max). `PlayerState` renvoie
-`level`, `xpFloor` et `xpNext` (null au max) pour que le site affiche la barre
+Le niveau est calculé à partir de l'XP cumulée (`src/state.ts`, source unique).
+Coût du palier N (transition N-1 → N) = `round(100 * (N - 2)^1.5 + 100)` pour
+N ≥ 2. L'XP requise pour atteindre un niveau est la **somme des paliers** :
+
+- coûts des paliers : L2=100, L3=200, L4=383, L5=620, …
+- XP cumulée pour atteindre : L1=0, L2=100, L3=300, L4=683, L5=1303, … (max L100).
+
+`PlayerState` renvoie `level`, `xpFloor` (XP cumulée du niveau courant) et
+`xpNext` (XP cumulée du suivant, null au max) pour que le site affiche la barre
 sans dupliquer la formule.
 
 ## Routes

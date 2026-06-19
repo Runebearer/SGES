@@ -82,30 +82,36 @@ function nextResetIso(now: Date, timeZone: string): string {
 // === Niveaux d'habilitation (dérivés de l'XP) ================================
 // Le niveau est calculé ICI (source unique) à partir de l'XP cumulée, puis
 // renvoyé dans PlayerState. Le site se contente d'afficher.
-const MAX_LEVEL = 5; // borné sur les habilitations valides (1–5)
+const MAX_LEVEL = 100; // borné sur les habilitations valides (1–100)
 
-// XP cumulée requise pour atteindre le niveau N. Niveau 1 = 0.
-// Formule : round(100 * (N - 2)^1.5 + 100) pour N ≥ 2.
-function xpThresholdForLevel(n: number): number {
+// Coût en XP du palier vers le niveau N (transition N-1 → N), pour N ≥ 2.
+// Formule : round(100 * (N - 2)^1.5 + 100).
+function levelCost(n: number): number {
   if (n <= 1) return 0;
   return Math.round(100 * Math.pow(n - 2, 1.5) + 100);
 }
 
+// L'XP requise pour atteindre un niveau est la SOMME des paliers (cumulée) :
+// p.ex. niveau 3 = coût(2) + coût(3) = 100 + 200 = 300.
 function levelInfo(xp: number): {
   level: number;
   xpFloor: number;
   xpNext: number | null;
 } {
   let level = 1;
+  let xpFloor = 0; // XP cumulée pour atteindre `level`
+  let cumulative = 0; // accumulateur des seuils successifs
   for (let n = 2; n <= MAX_LEVEL; n++) {
-    if (xp >= xpThresholdForLevel(n)) level = n;
-    else break;
+    cumulative += levelCost(n); // XP cumulée pour atteindre le niveau n
+    if (xp >= cumulative) {
+      level = n;
+      xpFloor = cumulative;
+    } else {
+      // n est le prochain niveau, non atteint : borne haute de la barre.
+      return { level, xpFloor, xpNext: cumulative };
+    }
   }
-  return {
-    level,
-    xpFloor: xpThresholdForLevel(level),
-    xpNext: level >= MAX_LEVEL ? null : xpThresholdForLevel(level + 1),
-  };
+  return { level, xpFloor, xpNext: null }; // niveau max atteint
 }
 
 function num(value: unknown, fallback: number): number {
