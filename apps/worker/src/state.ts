@@ -79,6 +79,35 @@ function nextResetIso(now: Date, timeZone: string): string {
   return new Date(now.getTime() + remaining * 1000).toISOString();
 }
 
+// === Niveaux d'habilitation (dérivés de l'XP) ================================
+// Le niveau est calculé ICI (source unique) à partir de l'XP cumulée, puis
+// renvoyé dans PlayerState. Le site se contente d'afficher.
+const MAX_LEVEL = 5; // borné sur les habilitations valides (1–5)
+
+// XP cumulée requise pour atteindre le niveau N. Niveau 1 = 0.
+// Formule : round(100 * (N - 2)^1.5 + 100) pour N ≥ 2.
+function xpThresholdForLevel(n: number): number {
+  if (n <= 1) return 0;
+  return Math.round(100 * Math.pow(n - 2, 1.5) + 100);
+}
+
+function levelInfo(xp: number): {
+  level: number;
+  xpFloor: number;
+  xpNext: number | null;
+} {
+  let level = 1;
+  for (let n = 2; n <= MAX_LEVEL; n++) {
+    if (xp >= xpThresholdForLevel(n)) level = n;
+    else break;
+  }
+  return {
+    level,
+    xpFloor: xpThresholdForLevel(level),
+    xpNext: level >= MAX_LEVEL ? null : xpThresholdForLevel(level + 1),
+  };
+}
+
 function num(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
@@ -132,6 +161,7 @@ async function load(env: Env, uid: string, today: string): Promise<StoredPlayer>
 }
 
 function toState(stored: StoredPlayer, env: Env): PlayerState {
+  const { level, xpFloor, xpNext } = levelInfo(stored.xp);
   return {
     energy: {
       value: stored.energy.value,
@@ -142,6 +172,9 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
     electricity: stored.electricity,
     artifacts: stored.artifacts,
     xp: stored.xp,
+    level,
+    xpFloor,
+    xpNext,
   };
 }
 

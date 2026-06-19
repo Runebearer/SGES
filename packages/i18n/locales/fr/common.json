@@ -47,7 +47,8 @@
     "hud_status": "Systèmes nominaux",
     "xp": {
       "label": "Expérience",
-      "level": "Niv. {{level}}"
+      "level": "Niv. {{level}}",
+      "max": "MAX"
     },
     "actions": {
       "launch": "Lancer",

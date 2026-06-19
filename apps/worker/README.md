@@ -9,7 +9,16 @@ Worker) :
 | `energy`      | 0–100, **recharge à 100 % chaque jour à minuit** (fuseau configurable). |
 | `electricity` | 0–100, plafonnée mais **sans** recharge quotidienne (gain à venir). |
 | `artifacts`   | Compteur 0–30 (plafonné).                                           |
-| `xp`          | Accumulateur ≥ 0 ; le niveau (`authLevel`) reste dans Firestore.    |
+| `xp`          | Accumulateur ≥ 0 (gagné via les actions).                          |
+| `level`       | Habilitation 1–5, **dérivée de l'XP** (serveur-autoritaire).        |
+
+### Niveaux (dérivés de l'XP)
+
+Le niveau est calculé à partir de l'XP cumulée (`src/state.ts`, source unique) :
+seuil du niveau N = `round(100 * (N - 2)^1.5 + 100)` pour N ≥ 2, niveau 1 = 0.
+Paliers : L1=0, L2=100, L3=200, L4=383, L5=620 (max). `PlayerState` renvoie
+`level`, `xpFloor` et `xpNext` (null au max) pour que le site affiche la barre
+sans dupliquer la formule.
 
 ## Routes
 

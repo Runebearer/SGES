@@ -203,10 +203,19 @@ export default function Dashboard() {
   // (non chargées / Worker injoignable).
   const energyLevel: number | null = player ? player.energy.value : null;
 
-  // Progression d'expérience (0–100), accumulée côté Worker. Le niveau affiché
-  // reste celui du compte (authLevel, Firestore) : pas de lien automatique.
+  // Expérience : le niveau (authLevel) est dérivé de l'XP côté Worker. La barre
+  // affiche la progression au sein du niveau courant (bornes xpFloor → xpNext
+  // fournies par le Worker). Au niveau max (xpNext null) : barre pleine.
   const xp: number | null = player ? player.xp : null;
-  const xpPct = xp == null ? 0 : Math.max(0, Math.min(100, xp));
+  const atMaxLevel = player != null && player.xpNext == null;
+  const xpPct = (() => {
+    if (player == null) return 0;
+    if (player.xpNext == null) return 100;
+    const span = player.xpNext - player.xpFloor;
+    return span > 0
+      ? Math.max(0, Math.min(100, ((player.xp - player.xpFloor) / span) * 100))
+      : 0;
+  })();
 
   // Route réservée : renvoie vers le login si non authentifié.
   useEffect(() => {
@@ -320,7 +329,11 @@ export default function Dashboard() {
                   </div>
                   <div className="xp-levels">
                     <span>{t('dashboard.xp.level', { level: authLevel })}</span>
-                    <span>{t('dashboard.xp.level', { level: authLevel + 1 })}</span>
+                    <span>
+                      {atMaxLevel
+                        ? t('dashboard.xp.max')
+                        : t('dashboard.xp.level', { level: authLevel + 1 })}
+                    </span>
                   </div>
                 </div>
               </div>

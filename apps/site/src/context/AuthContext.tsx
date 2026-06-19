@@ -2,19 +2,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import type {
   PlayerState,
   SpendEnergyResponse,
   ActionDef,
   PerformActionResult,
 } from '@sges/api-contract';
-import { auth, db } from '../firebase';
-import {
-  DEFAULT_AUTH_LEVEL,
-  normalizeAuthLevel,
-  type AuthLevel,
-} from '../lib/authLevels';
+import { auth } from '../firebase';
+import { normalizeAuthLevel, type AuthLevel } from '../lib/authLevels';
 import {
   fetchPlayerState,
   fetchActions,
@@ -24,7 +19,8 @@ import {
 
 type AuthContextValue = {
   user: User | null;
-  // Niveau d'habilitation de l'utilisateur (null tant que non connecté).
+  // Niveau d'habilitation, DÉRIVÉ de l'XP (player.level). null si non connecté
+  // / état joueur non chargé.
   authLevel: AuthLevel | null;
   // État joueur serveur-autoritaire (null tant que non connecté / non chargé).
   player: PlayerState | null;
@@ -58,7 +54,6 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [authLevel, setAuthLevel] = useState<AuthLevel | null>(null);
   const [player, setPlayer] = useState<PlayerState | null>(null);
   const [actions, setActions] = useState<ActionDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,19 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
 
       if (u) {
-        // Récupère le niveau d'habilitation depuis le profil Firestore.
-        // Les comptes créés avant cette fonctionnalité n'ont pas de doc :
-        // on retombe sur le niveau par défaut.
-        try {
-          const snap = await getDoc(doc(db, 'users', u.uid));
-          setAuthLevel(normalizeAuthLevel(snap.data()?.authLevel));
-        } catch {
-          setAuthLevel(DEFAULT_AUTH_LEVEL);
-        }
-
         // Charge l'état joueur + le catalogue d'actions depuis le Worker
-        // (serveur-autoritaire). Tolère l'échec (Worker non déployé /
-        // NEXT_PUBLIC_WORKER_URL absent) : jauges « en attente », pas d'actions.
+        // (serveur-autoritaire). Le niveau d'habilitation est désormais dérivé
+        // de l'XP (player.level) — plus de lecture Firestore. Tolère l'échec
+        // (Worker non déployé / NEXT_PUBLIC_WORKER_URL absent).
         try {
           setPlayer(await fetchPlayerState(() => u.getIdToken()));
         } catch {
@@ -92,7 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setActions([]);
         }
       } else {
-        setAuthLevel(null);
         setPlayer(null);
         setActions([]);
       }
@@ -148,6 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPlayer(res.state);
     return res;
   };
+
+  // Niveau d'habilitation dérivé de l'XP (serveur-autoritaire via player.level).
+  const authLevel: AuthLevel | null = player
+    ? normalizeAuthLevel(player.level)
+    : null;
 
   return (
     <AuthContext.Provider

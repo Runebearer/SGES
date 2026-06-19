@@ -47,7 +47,8 @@
     "hud_status": "Systems nominal",
     "xp": {
       "label": "Experience",
-      "level": "Lvl {{level}}"
+      "level": "Lvl {{level}}",
+      "max": "MAX"
     },
     "actions": {
       "launch": "Launch",

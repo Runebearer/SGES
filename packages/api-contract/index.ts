@@ -44,11 +44,17 @@ export interface PlayerState {
   electricity: number;
   /** Nombre d'artefacts collectés (0–MAX_ARTIFACTS). */
   artifacts: number;
-  /**
-   * Points d'expérience (accumulateur ≥ 0). Le niveau d'habilitation
-   * (authLevel) reste géré séparément dans Firestore : aucun lien automatique.
-   */
+  /** Points d'expérience cumulés (≥ 0). Gagnés via les actions. */
   xp: number;
+  /**
+   * Niveau d'habilitation, DÉRIVÉ de l'XP par le Worker (serveur-autoritaire).
+   * Borné par les habilitations valides (1–MAX_LEVEL).
+   */
+  level: number;
+  /** XP cumulée requise pour le niveau courant (seuil bas de la barre XP). */
+  xpFloor: number;
+  /** XP cumulée requise pour le niveau suivant ; null au niveau maximum. */
+  xpNext: number | null;
 }
 
 /** Corps de `POST /energy/spend`. */
