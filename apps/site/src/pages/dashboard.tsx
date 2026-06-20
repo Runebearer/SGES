@@ -1,10 +1,10 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
-import type { ActionSection } from '@sges/api-contract';
+import type { ActionDef, ActionSection } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
@@ -91,69 +91,223 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
   );
 }
 
-// Cartes d'action (UI, sans handler d'exécution pour l'instant) : carte carrée
-// holographique qui se retourne au clic (flip 3D) pour révéler les sous-missions
-// du thème. Filtrées par section du dashboard (cf. ActionDef.section).
+// Durée totale lisible (ex. « 30s », « 2 min », « 1 min 30s »).
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s === 0 ? `${m} min` : `${m} min ${s}s`;
+}
+
+// Compte à rebours mm:ss.
+function formatClock(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Récap des missions en cours : une fenêtre par mission, jauge qui se remplit
+// avec le timer (calculée localement à partir de startedAt/endsAt fournis par
+// le Worker). À l'échéance, on rappelle le Worker pour finaliser (gains).
+function ActiveMissions() {
+  const { t } = useTranslation('common');
+  const { player } = useAuth();
+  const missions = player?.missions ?? [];
+  const [now, setNow] = useState(() => Date.now());
+
+  // Tic d'animation des jauges (~4×/s) tant qu'il y a des missions. La
+  // finalisation (rappel du Worker à l'échéance) est centralisée dans Dashboard.
+  useEffect(() => {
+    if ((player?.missions ?? []).length === 0) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [player]);
+
+  if (missions.length === 0) return null;
+
+  return (
+    <div className="active-missions">
+      <h2 className="active-missions-title">
+        {t('dashboard.missions_active.title')}
+      </h2>
+      <div className="active-missions-grid">
+        {missions.map((m) => {
+          const total = m.endsAt - m.startedAt;
+          const elapsed = Math.min(total, Math.max(0, now - m.startedAt));
+          const pct = total > 0 ? (elapsed / total) * 100 : 100;
+          const remaining = Math.max(0, Math.ceil((m.endsAt - now) / 1000));
+          return (
+            <div key={m.actionId} className="mission-window">
+              <div className="mission-window-head">
+                <span className="mission-window-name">{m.name}</span>
+                <span className="mission-window-time">
+                  {formatClock(remaining)}
+                </span>
+              </div>
+              <div
+                className="mission-window-track"
+                role="progressbar"
+                aria-label={m.name}
+                aria-valuenow={Math.round(pct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="mission-window-fill"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Cartes d'action : carte carrée holographique qui se retourne au clic (flip 3D)
+// pour révéler les sous-missions. Cliquer une sous-mission DÉMARRE l'action
+// parente (timer côté Worker). Filtrées par section (cf. ActionDef.section).
 function ActionCards({ section }: { section: ActionSection }) {
-  const { actions } = useAuth();
+  const { t } = useTranslation('common');
+  const { actions, player, performAction } = useAuth();
   const [flipped, setFlipped] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [errored, setErrored] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
   const list = actions.filter((a) => a.section === section);
+  const hasRunning = (player?.missions ?? []).some((m) =>
+    list.some((a) => a.id === m.actionId)
+  );
+
+  // Tic d'animation des jauges sur les sous-missions en cours.
+  useEffect(() => {
+    if (!hasRunning) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [hasRunning]);
+
   if (list.length === 0) return null;
+
+  const missionFor = (actionId: string) =>
+    (player?.missions ?? []).find((m) => m.actionId === actionId);
+
+  const canAfford = (a: ActionDef) =>
+    player != null &&
+    player.energy.value >= a.cost.energy &&
+    player.electricity >= a.cost.electricity &&
+    player.artifacts >= a.cost.artifacts;
+
+  const start = async (a: ActionDef) => {
+    setBusy(a.id);
+    setErrored(null);
+    try {
+      await performAction(a.id);
+    } catch {
+      setErrored(a.id);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div className="actions-list">
-      {list.map((a) => (
-        <div
-          key={a.id}
-          className={`action-card${flipped === a.id ? ' flipped' : ''}`}
-        >
-          <div className="action-inner">
-            {/* Recto : titre + descriptif. Clic → retourne la carte. */}
-            <div
-              className="action-face action-front"
-              role="button"
-              tabIndex={0}
-              aria-label={a.name}
-              onClick={() => setFlipped(a.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setFlipped(a.id);
-                }
-              }}
-            >
-              <h3 className="action-name">{a.name}</h3>
-              <p className="action-desc">{a.description}</p>
-            </div>
-
-            {/* Verso : sous-missions du thème. */}
-            <div className="action-face action-back">
-              <div className="action-back-head">
-                <button
-                  type="button"
-                  className="action-back-btn"
-                  onClick={() => setFlipped(null)}
-                  aria-label="Retour"
-                >
-                  ←
-                </button>
-                <h3 className="action-name action-back-title">{a.name}</h3>
+      {list.map((a) => {
+        const visible = a.subMissions.filter((s) => s.available !== false);
+        const mission = missionFor(a.id);
+        const running = !!mission;
+        const affordable = canAfford(a);
+        let pct = 0;
+        let remaining = 0;
+        if (mission) {
+          const total = mission.endsAt - mission.startedAt;
+          const done = Math.min(total, Math.max(0, now - mission.startedAt));
+          pct = total > 0 ? (done / total) * 100 : 100;
+          remaining = Math.max(0, Math.ceil((mission.endsAt - now) / 1000));
+        }
+        return (
+          <div
+            key={a.id}
+            className={`action-card${flipped === a.id ? ' flipped' : ''}`}
+          >
+            <div className="action-inner">
+              {/* Recto : titre + descriptif. Clic → retourne la carte. */}
+              <div
+                className="action-face action-front"
+                role="button"
+                tabIndex={0}
+                aria-label={a.name}
+                onClick={() => setFlipped(a.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setFlipped(a.id);
+                  }
+                }}
+              >
+                <h3 className="action-name">{a.name}</h3>
+                <p className="action-desc">{a.description}</p>
               </div>
-              <ul className="submission-list">
-                {a.subMissions.length === 0 ? (
-                  <li className="submission-empty">À venir…</li>
-                ) : (
-                  a.subMissions.map((s) => (
-                    <li key={s.id} className="submission">
-                      {s.name}
-                    </li>
-                  ))
-                )}
-              </ul>
+
+              {/* Verso : sous-missions (cliquables → démarrent l'action). */}
+              <div className="action-face action-back">
+                <div className="action-back-head">
+                  <button
+                    type="button"
+                    className="action-back-btn"
+                    onClick={() => setFlipped(null)}
+                    aria-label="Retour"
+                  >
+                    ←
+                  </button>
+                  <h3 className="action-name action-back-title">{a.name}</h3>
+                </div>
+                <ul className="submission-list">
+                  {visible.length === 0 ? (
+                    <li className="submission-empty">À venir…</li>
+                  ) : (
+                    visible.map((s) => (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          className="submission"
+                          disabled={busy === a.id || running || !affordable}
+                          onClick={() => start(a)}
+                        >
+                          <span className="submission-name">{s.name}</span>
+                          <span className="submission-state">
+                            {running
+                              ? formatClock(remaining)
+                              : errored === a.id
+                                ? t('dashboard.actions.insufficient')
+                                : formatDuration(a.durationSec)}
+                          </span>
+                        </button>
+                        {running && (
+                          <div
+                            className="submission-track"
+                            role="progressbar"
+                            aria-label={s.name}
+                            aria-valuenow={Math.round(pct)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <div
+                              className="submission-fill"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -205,6 +359,32 @@ export default function Dashboard() {
       refreshPlayer();
     }
   }, [active, user]);
+
+  // Finalisation centralisée des missions : tant qu'une mission est en cours, on
+  // rappelle le Worker dès qu'elle arrive à échéance (quel que soit l'onglet
+  // affiché) pour récupérer les gains. Throttlé + robuste au décalage d'horloge.
+  const missionRefreshingRef = useRef(false);
+  const missionLastRefreshRef = useRef(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const missions = player?.missions ?? [];
+    if (missions.length === 0) return;
+    const id = setInterval(() => {
+      const tNow = Date.now();
+      if (
+        missions.some((m) => m.endsAt <= tNow) &&
+        !missionRefreshingRef.current &&
+        tNow - missionLastRefreshRef.current > 2000
+      ) {
+        missionRefreshingRef.current = true;
+        missionLastRefreshRef.current = tNow;
+        refreshPlayer().finally(() => {
+          missionRefreshingRef.current = false;
+        });
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, [player]);
 
   // Restaure le dernier onglet visité après un rafraîchissement de page.
   // Effet (et non valeur initiale) pour éviter tout décalage d'hydratation SSR.
@@ -385,6 +565,9 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
+
+                {/* Récap des missions en cours, sous les ressources. */}
+                <ActiveMissions />
               </div>
             )}
 
@@ -1234,7 +1417,14 @@ export default function Dashboard() {
           overflow: auto;
         }
 
+        /* Sous-mission = bouton qui démarre l'action. */
         .dashboard-screen .submission {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          text-align: left;
           font-family: monospace;
           font-size: 0.8rem;
           letter-spacing: 1px;
@@ -1251,11 +1441,42 @@ export default function Dashboard() {
             calc(100% - 5px) 100%,
             0 100%
           );
+          cursor: pointer;
           transition: all 0.2s ease;
         }
-        .dashboard-screen .submission:hover {
+        .dashboard-screen .submission:hover:not(:disabled) {
           background: rgba(37, 99, 255, 0.2);
           box-shadow: 0 0 12px rgba(37, 99, 255, 0.3);
+        }
+        .dashboard-screen .submission:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
+        .dashboard-screen .submission-name {
+          font-weight: 700;
+        }
+        .dashboard-screen .submission-state {
+          flex-shrink: 0;
+          font-size: 0.7rem;
+          opacity: 0.75;
+          white-space: nowrap;
+        }
+
+        /* Jauge de complétion sous une sous-mission en cours. */
+        .dashboard-screen .submission-track {
+          position: relative;
+          height: 6px;
+          margin-top: 5px;
+          background: rgba(3, 7, 18, 0.7);
+          border: 1px solid rgba(168, 85, 247, 0.35);
+          overflow: hidden;
+        }
+        .dashboard-screen .submission-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #7e22ce, var(--violet), #c084fc);
+          box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+          transition: width 0.25s linear;
         }
 
         .dashboard-screen .submission-empty {
@@ -1263,6 +1484,81 @@ export default function Dashboard() {
           font-size: 0.78rem;
           letter-spacing: 1px;
           color: rgba(209, 225, 248, 0.4);
+        }
+
+        /* ---- MISSIONS EN COURS (récap) ---- */
+        .dashboard-screen .active-missions {
+          padding: 20px 22px;
+          background: var(--panel-bg);
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(37, 99, 255, 0.3);
+          border-left: 4px solid var(--violet);
+          clip-path: polygon(
+            0 14px,
+            14px 0,
+            100% 0,
+            100% calc(100% - 14px),
+            calc(100% - 14px) 100%,
+            0 100%
+          );
+        }
+
+        .dashboard-screen .active-missions-title {
+          margin: 0 0 16px;
+          font-family: monospace;
+          font-size: 0.8rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--violet);
+        }
+
+        .dashboard-screen .active-missions-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 16px;
+        }
+
+        .dashboard-screen .mission-window {
+          padding: 14px 16px;
+          background: rgba(3, 7, 18, 0.5);
+          border: 1px solid rgba(168, 85, 247, 0.25);
+        }
+
+        .dashboard-screen .mission-window-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+
+        .dashboard-screen .mission-window-name {
+          font-family: monospace;
+          font-size: 0.78rem;
+          letter-spacing: 1px;
+          color: var(--electric-bright);
+        }
+
+        .dashboard-screen .mission-window-time {
+          font-family: 'Allerta Stencil', monospace;
+          font-size: 1.05rem;
+          color: #fff;
+          text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+        }
+
+        .dashboard-screen .mission-window-track {
+          position: relative;
+          height: 12px;
+          background: rgba(3, 7, 18, 0.7);
+          border: 1px solid rgba(168, 85, 247, 0.35);
+          overflow: hidden;
+        }
+
+        .dashboard-screen .mission-window-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #7e22ce, var(--violet), #c084fc);
+          box-shadow: 0 0 10px rgba(168, 85, 247, 0.7);
+          transition: width 0.25s linear;
         }
 
         /* ===== RESPONSIVE / MOBILE ===== */

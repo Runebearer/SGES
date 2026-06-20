@@ -109,6 +109,9 @@ export async function performAction(
   if (res.status === 402) {
     throw new PlayerClientError('insufficient_resources', 402);
   }
+  if (res.status === 409) {
+    throw new PlayerClientError('already_active', 409);
+  }
   if (!res.ok) {
     throw new PlayerClientError('perform_action_failed', res.status);
   }

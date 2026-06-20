@@ -55,6 +55,24 @@ export interface PlayerState {
   xpFloor: number;
   /** XP cumulée requise pour le niveau suivant ; null au niveau maximum. */
   xpNext: number | null;
+  /** Missions en cours (timers serveur-autoritaires). */
+  missions: ActiveMission[];
+}
+
+/**
+ * Mission en cours d'un joueur (action lancée, pas encore terminée). Les
+ * horodatages sont en ms epoch, horloge serveur. La jauge côté client se calcule
+ * à partir de `startedAt`/`endsAt` ; à `endsAt` dépassé, le Worker applique les
+ * gains (complétion paresseuse) et retire la mission.
+ */
+export interface ActiveMission {
+  actionId: string;
+  /** Nom de l'action (pour l'affichage). */
+  name: string;
+  startedAt: number;
+  endsAt: number;
+  /** Durée totale en secondes (pour la jauge). */
+  durationSec: number;
 }
 
 /** Corps de `POST /energy/spend`. */
@@ -106,6 +124,11 @@ export type ActionSection = 'sgcf' | 'missions';
 export interface SubMission {
   id: string;
   name: string;
+  /**
+   * Visibilité/accessibilité côté joueur. Absent ou `true` = visible ;
+   * `false` = masquée pour l'instant (déblocage sous conditions à venir).
+   */
+  available?: boolean;
 }
 
 /**
@@ -124,18 +147,22 @@ export interface ActionDef {
   cost: ActionCost;
   gain: ActionGain;
   description: string;
+  /** Durée de la mission en secondes (le timer avant complétion). */
+  durationSec: number;
   /** Sous-missions du thème, révélées au dos de la carte (peut être vide). */
   subMissions: SubMission[];
 }
 
-/** Réponse de `POST /action/{id}` en cas de succès. */
+/**
+ * Réponse de `POST /action/{id}` en cas de succès : l'action est DÉMARRÉE
+ * (mission ajoutée à `state.missions`). Les gains sont appliqués à la
+ * complétion du timer, pas ici.
+ */
 export interface PerformActionResult {
-  /** État joueur à jour après l'action. */
+  /** État joueur à jour après le démarrage (mission en cours ajoutée). */
   state: PlayerState;
-  /** Identifiant de l'action effectuée. */
+  /** Identifiant de l'action démarrée. */
   actionId: string;
-  /** Gains réellement appliqués (artefacts = valeur tirée dans [min, max]). */
-  gained: { electricity: number; artifacts: number; xp: number };
 }
 
 /** Réponse d'erreur d'une action. */

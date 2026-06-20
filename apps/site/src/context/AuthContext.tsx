@@ -69,12 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // (Worker non déployé / NEXT_PUBLIC_WORKER_URL absent).
         try {
           setPlayer(await fetchPlayerState(() => u.getIdToken()));
-        } catch {
+        } catch (e) {
+          // Jauges vides = cette erreur. Cause fréquente : NEXT_PUBLIC_WORKER_URL
+          // absent du build (serveur de dev démarré avant l'ajout de la variable
+          // → redémarrer `npm run dev`), ou Worker injoignable.
+          console.warn('[SGES] Chargement de l’état joueur échoué :', e);
           setPlayer(null);
         }
         try {
           setActions(await fetchActions(() => u.getIdToken()));
-        } catch {
+        } catch (e) {
+          console.warn('[SGES] Chargement du catalogue d’actions échoué :', e);
           setActions([]);
         }
       } else {

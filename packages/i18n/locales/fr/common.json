@@ -58,6 +58,9 @@
       "gain": "Gain",
       "empty": "Aucune action disponible."
     },
+    "missions_active": {
+      "title": "Missions en cours"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",

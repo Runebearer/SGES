@@ -16,12 +16,14 @@ export const ACTIONS: ActionDef[] = [
     requiredAddressStatus: null,
     cost: { energy: 5, electricity: 0, artifacts: 0 },
     gain: { electricity: 30, artifactsMin: 0, artifactsMax: 0, xp: 5 },
+    durationSec: 30,
     description:
       "Configurer et alimenter les générateurs à Naquadah de la base. Une alimentation stable est indispensable avant d'initier toute séquence de numérotation.",
     subMissions: [
       { id: 'nuclear', name: 'Nucléaire' },
-      { id: 'naquadah', name: 'Naquadah' },
-      { id: 'naquadria', name: 'Naquadria' },
+      // Masquées pour l'instant : déblocage sous conditions à venir.
+      { id: 'naquadah', name: 'Naquadah', available: false },
+      { id: 'naquadria', name: 'Naquadria', available: false },
     ],
   },
   {
@@ -32,6 +34,7 @@ export const ACTIONS: ActionDef[] = [
     requiredAddressStatus: null,
     cost: { energy: 8, electricity: 5, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 2, artifactsMax: 2, xp: 8 },
+    durationSec: 120,
     description:
       "Bien des secrets sont enfouis dans les artefacts antiques. C'est une ressource rare mais nécessaire pour les recherches",
     subMissions: [{ id: 'gizeh', name: 'Plateau de Gizeh' }],
@@ -44,6 +47,7 @@ export const ACTIONS: ActionDef[] = [
     requiredAddressStatus: null,
     cost: { energy: 20, electricity: 15, artifacts: 10 },
     gain: { electricity: 0, artifactsMin: 0, artifactsMax: 0, xp: 20 },
+    durationSec: 900,
     description:
       "Le Dr. Daniel Jackson tente de traduire les cartouches de symboles récupérés pour calculer la dérive stellaire.",
     subMissions: [{ id: 'abydos', name: "Cartouche d'Abydos" }],
@@ -56,18 +60,20 @@ export const ACTIONS: ActionDef[] = [
     requiredAddressStatus: 'Découverte',
     cost: { energy: 10, electricity: 20, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 0, artifactsMax: 0, xp: 10 },
+    durationSec: 300,
     description:
       "Composer le code d'une adresse découverte et envoyer une sonde automatisée MALP à travers le vortex pour s'assurer que le site est viable.",
     subMissions: [],
   },
   {
     id: 'planetary_archaeology',
-    name: 'Mission : Archéologie Planétaire',
+    name: 'Mission : Astro-archéologie',
     section: 'missions',
     requiredLevel: 1,
     requiredAddressStatus: 'Vivable',
     cost: { energy: 15, electricity: 30, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 5, artifactsMax: 10, xp: 15 },
+    durationSec: 600,
     description:
       "Établissez un horizon des événements stable et envoyez une équipe SG explorer les ruines extraterrestres sécurisées pour y extraire des reliques.",
     subMissions: [],
@@ -80,6 +86,7 @@ export const ACTIONS: ActionDef[] = [
     requiredAddressStatus: 'Chulak',
     cost: { energy: 20, electricity: 40, artifacts: 0 },
     gain: { electricity: 0, artifactsMin: 4, artifactsMax: 6, xp: 30 },
+    durationSec: 1800,
     description:
       "Traversez la Porte vers le monde d'origine d'Apophis pour sceller une alliance avec la rébellion Jaffa naissante. Mission nerveuse et riche en XP.",
     subMissions: [],
