@@ -83,6 +83,15 @@ export default function AuthTerminal({
       </form>
 
       <style jsx global>{`
+        /* Réinitialise la marge par défaut du body (sinon un cadre blanc
+           entoure la page) et applique le fond sombre jusqu'aux bords. */
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background-color: #030712;
+        }
+
         .auth-screen {
           --bg-space: #030712;
           --panel-bg: rgba(10, 25, 47, 0.72);

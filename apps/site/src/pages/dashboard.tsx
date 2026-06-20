@@ -24,8 +24,14 @@ const SECTION_IDS: readonly SectionId[] = [
   'alert',
   'rewards',
 ];
-// Clé localStorage : mémorise l'onglet courant pour le restaurer au refresh.
-const SECTION_STORAGE_KEY = 'sges:dashboard:section';
+
+// Onglet déduit du paramètre d'URL `?tab=...` (défaut : dashboard).
+function sectionFromQuery(tab: string | string[] | undefined): SectionId {
+  const value = Array.isArray(tab) ? tab[0] : tab;
+  return value && (SECTION_IDS as readonly string[]).includes(value)
+    ? (value as SectionId)
+    : 'dashboard';
+}
 
 // Glyphes SVG du menu (trait fin, style HUD).
 const ICONS: Record<SectionId, JSX.Element> = {
@@ -163,7 +169,9 @@ export default function Dashboard() {
   const router = useRouter();
   const { user, authLevel, player, loading, signOut, refreshPlayer } = useAuth();
 
-  const [active, setActive] = useState<SectionId>('dashboard');
+  // L'onglet actif est piloté par l'URL (?tab=...) : partageable, conservé au
+  // rafraîchissement et navigable via les boutons précédent/suivant.
+  const active = sectionFromQuery(router.query.tab);
 
   // Présence d'une alerte transmise. Grisée tant que false ; passe en couleur
   // dès qu'une alerte arrive. TODO: brancher sur le flux d'alertes (à venir).
@@ -206,19 +214,15 @@ export default function Dashboard() {
     }
   }, [active, user]);
 
-  // Restaure le dernier onglet visité après un rafraîchissement de page.
-  // Effet (et non valeur initiale) pour éviter tout décalage d'hydratation SSR.
-  useEffect(() => {
-    const saved = localStorage.getItem(SECTION_STORAGE_KEY);
-    if (saved && (SECTION_IDS as readonly string[]).includes(saved)) {
-      setActive(saved as SectionId);
-    }
-  }, []);
-
-  // Sélectionne un onglet ET le mémorise (restauré au prochain chargement).
+  // Sélectionne un onglet via l'URL (navigation peu profonde, sans rechargement).
+  // L'onglet par défaut (dashboard) garde une URL propre, sans `?tab`.
   const selectSection = (id: SectionId) => {
-    setActive(id);
-    localStorage.setItem(SECTION_STORAGE_KEY, id);
+    const query = { ...router.query };
+    if (id === 'dashboard') delete query.tab;
+    else query.tab = id;
+    router.replace({ pathname: router.pathname, query }, undefined, {
+      shallow: true,
+    });
   };
 
   const navItems: SectionId[] = ['dashboard', 'sgcf', 'missions', 'alert'];
