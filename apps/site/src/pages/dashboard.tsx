@@ -135,6 +135,19 @@ const EYE_OF_RA = (
   </svg>
 );
 
+// Éclair : symbole de l'électricité stockée.
+const LIGHTNING = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    stroke="currentColor"
+    strokeWidth="1"
+    strokeLinejoin="round"
+  >
+    <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
+  </svg>
+);
+
 // Petite fenêtre HUD du nombre d'artefacts possédés (toujours visible).
 function ArtifactWindow() {
   const { t } = useTranslation('common');
@@ -791,6 +804,9 @@ export default function Dashboard() {
                 <div className="cards-grid">
                   <div className="stat">
                     {/* Électricité stockée (0–100), gain via mécanique à venir. */}
+                    <span className="stat-icon stat-icon-power" aria-hidden="true">
+                      {LIGHTNING}
+                    </span>
                     <span className="stat-value">
                       {player ? player.electricity : '—'}
                     </span>
@@ -1439,6 +1455,11 @@ export default function Dashboard() {
         .dashboard-screen .stat-icon svg {
           width: 100%;
           height: 100%;
+        }
+        /* Éclair de l'électricité : bleu électrique (et non doré). */
+        .dashboard-screen .stat-icon-power {
+          color: var(--electric-bright);
+          filter: drop-shadow(0 0 6px rgba(77, 139, 255, 0.6));
         }
         .dashboard-screen .stat-artifact .stat-value {
           color: #f4e4b8;

@@ -18,10 +18,12 @@ import {
   MAX_ENERGY,
   MAX_ELECTRICITY,
   MAX_ARTIFACTS,
+  MAX_HISTORY,
   type PlayerState,
   type ActionCost,
   type PerformActionResult,
   type Address,
+  type HistoryEntry,
 } from '@sges/api-contract';
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
@@ -46,6 +48,8 @@ interface StoredPlayer {
   xp: number;
   missions: StoredMission[];
   addresses: Address[];
+  /** Journal des événements (actions terminées + passages de niveau), borné à MAX_HISTORY. */
+  history: HistoryEntry[];
 }
 
 const DEFAULT_TZ = 'Europe/Paris';
@@ -140,6 +144,7 @@ function defaults(today: string): StoredPlayer {
     xp: 0,
     missions: [],
     addresses: [],
+    history: [],
   };
 }
 
@@ -183,6 +188,65 @@ function parse(raw: string | null): StoredPlayer | null {
             )
             .map((a: any) => ({ id: a.id, name: a.name }))
         : [],
+      history: Array.isArray(o.history)
+        ? o.history
+            .map((h: any): HistoryEntry | null => {
+              if (!h || typeof h !== 'object') return null;
+              // Passage de niveau.
+              if (h.type === 'levelup') {
+                if (
+                  typeof h.level === 'number' &&
+                  typeof h.timestamp === 'number'
+                ) {
+                  return {
+                    type: 'levelup',
+                    level: h.level,
+                    fromLevel:
+                      typeof h.fromLevel === 'number'
+                        ? h.fromLevel
+                        : h.level - 1,
+                    timestamp: h.timestamp,
+                  };
+                }
+                return null;
+              }
+              // Sinon : entrée d'action (compat. ascendante — `type` peut être absent).
+              if (
+                typeof h.actionId === 'string' &&
+                typeof h.name === 'string' &&
+                typeof h.timestamp === 'number' &&
+                typeof h.level === 'number' &&
+                h.result &&
+                typeof h.result === 'object'
+              ) {
+                return {
+                  type: 'action',
+                  actionId: h.actionId,
+                  name: h.name,
+                  timestamp: h.timestamp,
+                  level: h.level,
+                  result: {
+                    electricity: num(h.result.electricity, 0),
+                    artifacts: num(h.result.artifacts, 0),
+                    xp: num(h.result.xp, 0),
+                    ...(h.result.addressUnlocked &&
+                    typeof h.result.addressUnlocked.id === 'string' &&
+                    typeof h.result.addressUnlocked.name === 'string'
+                      ? {
+                          addressUnlocked: {
+                            id: h.result.addressUnlocked.id,
+                            name: h.result.addressUnlocked.name,
+                          },
+                        }
+                      : {}),
+                  },
+                };
+              }
+              return null;
+            })
+            .filter((h: HistoryEntry | null): h is HistoryEntry => h !== null)
+            .slice(-MAX_HISTORY)
+        : [],
     };
   } catch {
     return null;
@@ -211,12 +275,16 @@ function completeMissions(
   let artifacts = stored.artifacts;
   let xp = stored.xp;
   const addresses = [...stored.addresses];
+  const history = [...stored.history];
   let completed = 0;
 
   for (const m of stored.missions) {
     if (m.endsAt <= now) {
       const def = ACTIONS_BY_ID[m.actionId];
       if (def) {
+        // Gains RÉELLEMENT crédités (différence après plafonnement) : c'est ce
+        // qu'on journalise comme « résultat » de l'action.
+        const before = { electricity, artifacts };
         electricity = clamp(
           electricity + def.gain.electricity,
           0,
@@ -227,14 +295,48 @@ function completeMissions(
           0,
           MAX_ARTIFACTS
         );
+        // Niveau du joueur AU MOMENT de l'action = niveau dérivé de l'XP AVANT
+        // d'y ajouter le gain de cette action.
+        const levelDuringAction = levelInfo(xp).level;
         xp = Math.max(0, xp + def.gain.xp);
+        const levelAfterAction = levelInfo(xp).level;
 
         // Recherche : débloque la PROCHAINE adresse du pool non encore possédée.
         const sub = def.subMissions.find((s) => s.id === m.subMissionId);
         const next = sub?.unlocksAddresses?.find(
           (a) => !addresses.some((owned) => owned.id === a.id)
         );
-        if (next) addresses.push({ id: next.id, name: next.name });
+        let addressUnlocked: Address | undefined;
+        if (next) {
+          addressUnlocked = { id: next.id, name: next.name };
+          addresses.push(addressUnlocked);
+        }
+
+        // Journalise l'action terminée (nom, timestamp, résultat, niveau).
+        history.push({
+          type: 'action',
+          actionId: m.actionId,
+          name: def.name,
+          timestamp: m.endsAt,
+          level: levelDuringAction,
+          result: {
+            electricity: electricity - before.electricity,
+            artifacts: artifacts - before.artifacts,
+            xp: def.gain.xp,
+            ...(addressUnlocked ? { addressUnlocked } : {}),
+          },
+        });
+
+        // Journalise chaque passage de niveau provoqué par le gain d'XP de
+        // cette action (une entrée par niveau franchi).
+        for (let lvl = levelDuringAction + 1; lvl <= levelAfterAction; lvl++) {
+          history.push({
+            type: 'levelup',
+            level: lvl,
+            fromLevel: lvl - 1,
+            timestamp: m.endsAt,
+          });
+        }
       }
       completed++;
     } else {
@@ -251,6 +353,8 @@ function completeMissions(
       xp,
       missions: stillRunning,
       addresses,
+      // Borne le journal aux MAX_HISTORY entrées les plus récentes.
+      history: history.slice(-MAX_HISTORY),
     },
     completed,
   };
@@ -310,6 +414,22 @@ export async function getState(env: Env, uid: string): Promise<PlayerState> {
   const { stored, dirty } = await loadReconciled(env, uid, today, now);
   if (dirty) await env.ENERGY_KV.put(key(uid), JSON.stringify(stored));
   return toState(stored, env);
+}
+
+/**
+ * Lit le journal des actions terminées du joueur. Comme `getState`, la lecture
+ * finalise d'abord les missions échues (leurs entrées d'historique sont alors
+ * persistées) afin que le journal soit toujours à jour.
+ */
+export async function getHistory(
+  env: Env,
+  uid: string
+): Promise<HistoryEntry[]> {
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const { stored, dirty } = await loadReconciled(env, uid, today, now);
+  if (dirty) await env.ENERGY_KV.put(key(uid), JSON.stringify(stored));
+  return stored.history;
 }
 
 export type SpendResult =

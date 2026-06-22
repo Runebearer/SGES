@@ -58,7 +58,28 @@ Clé `player:{uid}` → JSON (`StoredPlayer`). Forme stockée :
   "artifacts": 0,
   "xp": 0,
   "missions": [ { "actionId": "...", "startedAt": 0, "endsAt": 0, "subMissionId": "..." } ],
-  "addresses": [ { "id": "chulak", "name": "Chulak" } ]
+  "addresses": [ { "id": "chulak", "name": "Chulak" } ],
+  "history": [                            // union discriminée par `type`
+    {
+      "type": "action",
+      "actionId": "earth_archaeology",
+      "name": "Archéologie Terrienne",
+      "timestamp": 1718900000000,        // ms epoch (complétion)
+      "level": 3,                          // niveau du joueur lors de l'action
+      "result": {                          // gains réellement crédités
+        "electricity": 0,
+        "artifacts": 2,
+        "xp": 8,
+        "addressUnlocked": { "id": "chulak", "name": "Chulak" } // si recherche
+      }
+    },
+    {
+      "type": "levelup",                  // passage de niveau (1 entrée / niveau)
+      "level": 4,                          // niveau atteint
+      "fromLevel": 3,
+      "timestamp": 1718900000000           // = complétion de l'action déclenchante
+    }
+  ]
 }
 ```
 
@@ -86,6 +107,7 @@ seules une dépense, un démarrage d'action, ou une complétion de mission écri
 | `level` | Habilitation 1–100, **dérivée de l'XP** (calculée, jamais stockée). |
 | `missions` | Missions en cours (timers serveur). |
 | `addresses` | Coordonnées de la Porte débloquées par les recherches. |
+| `history` | Journal des événements : actions terminées **+ passages de niveau** (récompenses). Borné aux `MAX_HISTORY` (200) entrées les plus récentes. |
 
 ### Recharge d'énergie « à minuit » (paresseuse, sans cron)
 On mémorise le jour (`energy.day`) de la dernière mise à jour, dans le fuseau
@@ -120,6 +142,23 @@ aléatoire `[min,max]`), `durationSec`, `subMissions`, et — données conservé
 `endsAt <= now` sont finalisées → gains appliqués (électricité / artefacts aléatoires
 / xp), mission retirée, état persisté (gains irréversibles → écriture obligatoire).
 
+### Journal des événements (historique)
+`player.history` est un journal d'événements (**union discriminée par `type`**),
+borné aux `MAX_HISTORY` (200) entrées les plus récentes et lu via `GET /history`.
+C'est la base serveur-autoritaire pour attribuer des récompenses. Deux types
+d'entrées, tous deux ajoutés à la **complétion** d'une action (seul moment où le
+*résultat* et les gains d'XP existent) :
+
+- **`action`** — `{ actionId, name, timestamp (= endsAt), level, result }`. Le
+  `level` est celui du joueur **au moment de l'action** (dérivé de l'XP **avant**
+  d'y ajouter le gain) ; `result` contient les gains **réellement crédités** (après
+  plafonnement des ressources et tirage des artefacts), plus l'adresse débloquée le
+  cas échéant.
+- **`levelup`** — `{ level, fromLevel, timestamp }`. Ajouté lorsque le gain d'XP de
+  l'action fait franchir un ou plusieurs paliers : **une entrée par niveau franchi**
+  (un saut de deux niveaux d'un coup → deux entrées), insérée juste après l'entrée
+  `action` déclenchante.
+
 ### Recherche & adresses
 Une sous-mission peut porter `unlocksAddresses` (pool ordonné). À chaque complétion
 d'une telle recherche, le Worker débloque la **prochaine adresse non encore
@@ -133,6 +172,7 @@ possédée** et l'ajoute à `player.addresses`. La recherche reste répétable.
 | --- | --- | --- |
 | `GET` | `/state` | État complet du joueur (recharge + complétions appliquées). |
 | `GET` | `/energy` | Énergie seule (alias de compat). |
+| `GET` | `/history` | Journal des actions terminées (`ActionHistoryEntry[]`). |
 | `POST` | `/energy/spend` | Dépense d'énergie générique (`{ amount?, action? }`). |
 | `GET` | `/actions` | Catalogue des actions. |
 | `POST` | `/action/{id}` | Démarre une action (`{ subMissionId? }`). |
@@ -149,8 +189,9 @@ protégé par le token Firebase.
 ## 7. Contrat partagé (`@sges/api-contract`)
 
 Types et constantes partagés entre Worker et site : `PlayerState`, `EnergyState`,
-`ActionDef`, `SubMission`, `Address`, `ActiveMission`, `MAX_ENERGY`,
-`MAX_ELECTRICITY`, `MAX_ARTIFACTS`, etc. Le **site les importe en `type`** (effacés
+`ActionDef`, `SubMission`, `Address`, `ActiveMission`, `HistoryEntry`,
+`ActionHistoryEntry`, `LevelUpHistoryEntry`, `ActionResultSummary`, `MAX_ENERGY`,
+`MAX_ELECTRICITY`, `MAX_ARTIFACTS`, `MAX_HISTORY`, etc. Le **site les importe en `type`** (effacés
 du bundle navigateur) ; le Worker importe aussi les valeurs (constantes). Pas de
 `transpilePackages` nécessaire côté Next.
 

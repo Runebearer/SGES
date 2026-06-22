@@ -13,6 +13,13 @@ export const MAX_ELECTRICITY = 100;
 export const MAX_ARTIFACTS = 30;
 
 /**
+ * Nombre maximal d'entrées d'historique conservées par joueur (les plus
+ * récentes). Borne la taille du document KV ; au-delà, les plus anciennes
+ * entrées sont écartées.
+ */
+export const MAX_HISTORY = 200;
+
+/**
  * Coût en énergie d'une action quand le client n'en précise pas.
  * Avec MAX_ENERGY = 100, un coût de 10 autorise 10 actions par jour.
  */
@@ -184,6 +191,65 @@ export interface PerformActionResult {
   /** Identifiant de l'action démarrée. */
   actionId: string;
 }
+
+// === Historique des actions ==================================================
+
+/**
+ * Résultat appliqué d'une action terminée : les gains RÉELLEMENT crédités au
+ * joueur (après plafonnement des ressources et tirage aléatoire des artefacts).
+ */
+export interface ActionResultSummary {
+  /** Électricité réellement gagnée (≥ 0, après plafond). */
+  electricity: number;
+  /** Artefacts réellement gagnés (tirage effectif, ≥ 0, après plafond). */
+  artifacts: number;
+  /** XP réellement gagnée (≥ 0). */
+  xp: number;
+  /** Adresse débloquée par cette action, le cas échéant. */
+  addressUnlocked?: Address;
+}
+
+/**
+ * Entrée du journal d'actions d'un joueur : une action TERMINÉE (timer écoulé,
+ * gains appliqués). Sert de base serveur-autoritaire à l'attribution de
+ * récompenses. Stockée dans le document KV du joueur, exposée via `GET /history`.
+ */
+export interface ActionHistoryEntry {
+  /** Discriminant : action terminée. */
+  type: 'action';
+  /** Identifiant de l'action (catalogue). */
+  actionId: string;
+  /** Nom de l'action au moment de l'exécution (pour l'affichage). */
+  name: string;
+  /** Instant de complétion (ms epoch, horloge serveur). */
+  timestamp: number;
+  /** Niveau d'habilitation du joueur AU MOMENT de l'action (avant ses gains d'XP). */
+  level: number;
+  /** Résultat : gains réellement appliqués. */
+  result: ActionResultSummary;
+}
+
+/**
+ * Entrée du journal : PASSAGE DE NIVEAU du joueur, déclenché par le gain d'XP
+ * d'une action terminée. Une entrée est ajoutée par niveau franchi (un saut de
+ * deux niveaux d'un coup produit donc deux entrées).
+ */
+export interface LevelUpHistoryEntry {
+  /** Discriminant : passage de niveau. */
+  type: 'levelup';
+  /** Niveau atteint. */
+  level: number;
+  /** Niveau précédent (= level - 1). */
+  fromLevel: number;
+  /** Instant du passage (ms epoch, = complétion de l'action déclenchante). */
+  timestamp: number;
+}
+
+/** Entrée du journal : action terminée OU passage de niveau (union discriminée par `type`). */
+export type HistoryEntry = ActionHistoryEntry | LevelUpHistoryEntry;
+
+/** Réponse de `GET /history` : journal, de la plus ancienne à la plus récente. */
+export type ActionHistoryResponse = HistoryEntry[];
 
 /** Réponse d'erreur d'une action. */
 export interface ActionError {

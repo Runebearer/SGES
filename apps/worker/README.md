@@ -31,6 +31,7 @@ sans dupliquer la formule.
 | ------- | ---------------- | ------------------------------------------------------ |
 | `GET`   | `/state`         | État complet du joueur (recharge d'énergie appliquée). |
 | `GET`   | `/energy`        | Énergie seule (alias de compatibilité).                |
+| `GET`   | `/history`       | Journal des événements (`HistoryEntry[]` : actions + passages de niveau). |
 | `POST`  | `/energy/spend`  | Dépense d'énergie générique.                           |
 | `GET`   | `/actions`       | Catalogue des actions (coûts, gains, descriptions).    |
 | `POST`  | `/action/{id}`   | Exécute une action (coûts/gains serveur-autoritaires). |
@@ -46,6 +47,18 @@ insuffisantes → **402** `{ error: "insufficient_resources", cost, have }`.
 `requiredLevel` et `requiredAddressStatus` sont **conservés comme données mais
 pas encore appliqués** (systèmes d'XP/niveau et d'adresses à venir). Toutes les
 actions sont actuellement répétables.
+
+À la **complétion** d'une action, le Worker ajoute au journal du joueur
+(`player.history`, union discriminée par `type`) :
+
+- une entrée `action` : `{ type, actionId, name, timestamp, level, result }` —
+  `level` = niveau du joueur lors de l'action, `result` = gains réellement
+  crédités (+ adresse débloquée le cas échéant) ;
+- une entrée `levelup` par **palier franchi** si le gain d'XP fait monter de
+  niveau : `{ type, level, fromLevel, timestamp }`.
+
+Le journal (borné à `MAX_HISTORY` = 200 entrées récentes) est lisible via
+`GET /history` et sert de base à l'attribution de récompenses.
 
 Toutes les routes exigent un en-tête `Authorization: Bearer <ID token Firebase>`.
 Le token est vérifié dans le Worker (signature RS256 en WebCrypto contre les

@@ -3,6 +3,7 @@
 // Routes :
 //   GET  /state         → état complet du joueur (énergie, électricité, artefacts, xp)
 //   GET  /energy        → énergie seule (alias de compatibilité)
+//   GET  /history       → journal des actions terminées (récompenses)
 //   POST /energy/spend  → dépense de l'énergie pour une action
 //   GET  /actions       → catalogue des actions (coûts, gains, descriptions)
 //   POST /action/{id}   → exécute une action (coûts/gains serveur-autoritaires)
@@ -12,7 +13,7 @@
 
 import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
-import { getState, spendEnergy, startAction } from './state';
+import { getState, getHistory, spendEnergy, startAction } from './state';
 import { ACTIONS } from './actions';
 
 export interface Env {
@@ -94,6 +95,11 @@ export default {
     // --- GET /energy (alias de compatibilité : énergie seule) ----------------
     if (request.method === 'GET' && url.pathname === '/energy') {
       return json((await getState(env, uid)).energy, 200, cors);
+    }
+
+    // --- GET /history (journal des actions terminées) ------------------------
+    if (request.method === 'GET' && url.pathname === '/history') {
+      return json(await getHistory(env, uid), 200, cors);
     }
 
     // --- POST /energy/spend --------------------------------------------------
