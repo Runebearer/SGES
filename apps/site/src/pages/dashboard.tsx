@@ -478,6 +478,85 @@ function ResearchView({ onBack }: { onBack: () => void }) {
   );
 }
 
+// Vue « Récompenses ». La première récompense — le plan du couvercle (coverstone)
+// avec le cartouche de coordonnées — se débloque dès que le joueur a mené à bien
+// sa première recherche archéologique. Cette recherche est la SEULE action qui
+// débloque une adresse : posséder au moins une adresse ⟺ recherche effectuée.
+function RewardsView() {
+  const { t } = useTranslation('common');
+  const { player } = useAuth();
+  const [zoomed, setZoomed] = useState(false);
+  const unlocked = (player?.addresses?.length ?? 0) > 0;
+
+  // Fermeture de la visionneuse plein écran à la touche Échap.
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomed(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [zoomed]);
+
+  if (!unlocked) {
+    return (
+      <div className="panel">
+        <p>{t('dashboard.sections.rewards.empty')}</p>
+        <p className="rewards-hint">
+          {t('dashboard.sections.rewards.locked_hint')}
+        </p>
+      </div>
+    );
+  }
+
+  const alt = t('dashboard.sections.rewards.coverstone.alt');
+
+  return (
+    <>
+      <div className="rewards-grid">
+        <figure className="reward-card">
+          <button
+            type="button"
+            className="reward-thumb"
+            onClick={() => setZoomed(true)}
+            aria-label={t('dashboard.sections.rewards.coverstone.view')}
+          >
+            <img src="/rewards/coverstone.jpg" alt={alt} loading="lazy" />
+          </button>
+          <figcaption className="reward-caption">
+            <span className="reward-title">
+              {t('dashboard.sections.rewards.coverstone.title')}
+            </span>
+            <span className="reward-desc">
+              {t('dashboard.sections.rewards.coverstone.desc')}
+            </span>
+          </figcaption>
+        </figure>
+      </div>
+
+      {zoomed && (
+        <div
+          className="reward-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt}
+          onClick={() => setZoomed(false)}
+        >
+          <button
+            type="button"
+            className="reward-lightbox-close"
+            onClick={() => setZoomed(false)}
+            aria-label={t('dashboard.research.back')}
+          >
+            ×
+          </button>
+          <img src="/rewards/coverstone.jpg" alt={alt} />
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function Dashboard() {
   const { t } = useTranslation('common');
   const router = useRouter();
@@ -767,11 +846,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {active === 'rewards' && (
-              <div className="panel">
-                <p>{t('dashboard.sections.rewards.empty')}</p>
-              </div>
-            )}
+            {active === 'rewards' && <RewardsView />}
           </section>
         </main>
       </div>
@@ -1911,6 +1986,145 @@ export default function Dashboard() {
         .dashboard-screen .address-glyph {
           color: var(--electric-bright);
           text-shadow: 0 0 8px rgba(77, 139, 255, 0.7);
+        }
+
+        /* ---- RÉCOMPENSES ---- */
+        /* Indice affiché tant que la première récompense n'est pas débloquée. */
+        .dashboard-screen .rewards-hint {
+          margin: 14px 0 0;
+          font-family: monospace;
+          font-size: 0.8rem;
+          letter-spacing: 1px;
+          color: var(--electric-bright);
+          opacity: 0.7;
+        }
+
+        .dashboard-screen .rewards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 22px;
+          max-width: 920px;
+        }
+
+        .dashboard-screen .reward-card {
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          background: var(--panel-bg);
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(212, 175, 55, 0.4);
+          border-left: 4px solid #d4af37;
+          box-shadow: 0 0 18px rgba(212, 175, 55, 0.12),
+            inset 0 0 20px rgba(212, 175, 55, 0.05);
+          clip-path: polygon(
+            0 14px,
+            14px 0,
+            100% 0,
+            100% calc(100% - 14px),
+            calc(100% - 14px) 100%,
+            0 100%
+          );
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .dashboard-screen .reward-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 0 28px rgba(212, 175, 55, 0.28);
+        }
+
+        /* Vignette cliquable : ouvre la visionneuse plein écran. */
+        .dashboard-screen .reward-thumb {
+          display: block;
+          width: 100%;
+          padding: 0;
+          border: none;
+          border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+          background: #0b1020;
+          cursor: zoom-in;
+          line-height: 0;
+        }
+        .dashboard-screen .reward-thumb img {
+          display: block;
+          width: 100%;
+          height: auto;
+          filter: saturate(0.92);
+          transition: filter 0.25s ease;
+        }
+        .dashboard-screen .reward-thumb:hover img {
+          filter: saturate(1.05) brightness(1.05);
+        }
+        .dashboard-screen .reward-thumb:focus-visible {
+          outline: 2px solid #d4af37;
+          outline-offset: -2px;
+        }
+
+        .dashboard-screen .reward-caption {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 16px 18px;
+        }
+        .dashboard-screen .reward-title {
+          font-family: monospace;
+          font-size: 0.88rem;
+          font-weight: 700;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: #f4e4b8;
+          text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+        }
+        .dashboard-screen .reward-desc {
+          font-family: monospace;
+          font-size: 0.76rem;
+          line-height: 1.5;
+          letter-spacing: 0.5px;
+          color: var(--text-main);
+          opacity: 0.85;
+        }
+
+        /* ---- VISIONNEUSE PLEIN ÉCRAN ---- */
+        .dashboard-screen .reward-lightbox {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 32px;
+          background: rgba(3, 7, 18, 0.92);
+          backdrop-filter: blur(6px);
+          cursor: zoom-out;
+          animation: reward-fade 0.2s ease;
+        }
+        .dashboard-screen .reward-lightbox img {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          border: 1px solid rgba(212, 175, 55, 0.5);
+          box-shadow: 0 0 40px rgba(212, 175, 55, 0.25);
+        }
+        .dashboard-screen .reward-lightbox-close {
+          position: absolute;
+          top: 18px;
+          right: 22px;
+          width: 40px;
+          height: 40px;
+          font-size: 1.6rem;
+          line-height: 1;
+          color: #f4e4b8;
+          background: rgba(3, 7, 18, 0.6);
+          border: 1px solid rgba(212, 175, 55, 0.5);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .dashboard-screen .reward-lightbox-close:hover {
+          background: #d4af37;
+          color: #030712;
+          box-shadow: 0 0 16px rgba(212, 175, 55, 0.6);
+        }
+
+        @keyframes reward-fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         /* ===== RESPONSIVE / MOBILE ===== */

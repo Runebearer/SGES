@@ -108,7 +108,14 @@
       "rewards": {
         "title": "Récompenses",
         "subtitle": "// Distinctions et récompenses débloquées",
-        "empty": "Aucune récompense débloquée pour le moment."
+        "empty": "Aucune récompense débloquée pour le moment.",
+        "locked_hint": "Menez à bien votre première recherche archéologique pour débloquer votre première récompense.",
+        "coverstone": {
+          "title": "Plan du Couvercle",
+          "desc": "Relevé d'archives du couvercle de la Porte des étoiles (1928) : cartouche de coordonnées et symboles de constellations traduits lors de votre première recherche.",
+          "alt": "Plan technique du couvercle de la Porte des étoiles, avec le cartouche de coordonnées et les symboles de constellations.",
+          "view": "Agrandir le plan du couvercle"
+        }
       },
       "research": {
         "title": "Recherche Archéologique",

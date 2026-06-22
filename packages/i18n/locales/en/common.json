@@ -108,7 +108,14 @@
       "rewards": {
         "title": "Rewards",
         "subtitle": "// Unlocked honors and rewards",
-        "empty": "No rewards unlocked yet."
+        "empty": "No rewards unlocked yet.",
+        "locked_hint": "Complete your first archaeological research to unlock your first reward.",
+        "coverstone": {
+          "title": "Coverstone Plan",
+          "desc": "Archival survey of the Stargate coverstone (1928): the coordinate cartouche and constellation symbols translated during your first research.",
+          "alt": "Technical plan of the Stargate coverstone, showing the coordinate cartouche and constellation symbols.",
+          "view": "Enlarge the coverstone plan"
+        }
       },
       "research": {
         "title": "Archaeological Research",
