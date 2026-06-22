@@ -55,6 +55,28 @@ export interface PlayerState {
   xpFloor: number;
   /** XP cumulée requise pour le niveau suivant ; null au niveau maximum. */
   xpNext: number | null;
+  /** Missions en cours (timers serveur-autoritaires). */
+  missions: ActiveMission[];
+  /** Coordonnées (adresses) débloquées par les recherches terminées. */
+  addresses: Address[];
+}
+
+/**
+ * Mission en cours d'un joueur (action lancée, pas encore terminée). Les
+ * horodatages sont en ms epoch, horloge serveur. La jauge côté client se calcule
+ * à partir de `startedAt`/`endsAt` ; à `endsAt` dépassé, le Worker applique les
+ * gains (complétion paresseuse) et retire la mission.
+ */
+export interface ActiveMission {
+  actionId: string;
+  /** Nom de l'action (pour l'affichage). */
+  name: string;
+  startedAt: number;
+  endsAt: number;
+  /** Durée totale en secondes (pour la jauge). */
+  durationSec: number;
+  /** Sous-mission lancée (résout les déblocages d'adresse à la complétion). */
+  subMissionId?: string;
 }
 
 /** Corps de `POST /energy/spend`. */
@@ -99,6 +121,12 @@ export interface ActionGain {
 /** Section du dashboard où afficher la carte d'une action. */
 export type ActionSection = 'sgcf' | 'missions';
 
+/** Coordonnée (adresse) de la Porte des étoiles, débloquée par la recherche. */
+export interface Address {
+  id: string;
+  name: string;
+}
+
 /**
  * Sous-mission rattachée à une action (révélée au dos de la carte). Pour
  * l'instant purement descriptive ; deviendra exécutable ultérieurement.
@@ -106,6 +134,16 @@ export type ActionSection = 'sgcf' | 'missions';
 export interface SubMission {
   id: string;
   name: string;
+  /**
+   * Visibilité/accessibilité côté joueur. Absent ou `true` = visible ;
+   * `false` = masquée pour l'instant (déblocage sous conditions à venir).
+   */
+  available?: boolean;
+  /**
+   * Pool ordonné d'adresses que cette recherche peut débloquer. À chaque
+   * complétion, le Worker débloque la PROCHAINE adresse non encore possédée.
+   */
+  unlocksAddresses?: Address[];
 }
 
 /**
@@ -119,23 +157,32 @@ export interface ActionDef {
   name: string;
   /** Section du dashboard où afficher la carte ; null = pas encore placée. */
   section: ActionSection | null;
+  /**
+   * Si défini, cliquer la carte NAVIGUE vers cette vue du dashboard au lieu de
+   * se retourner (flip). Ex. 'research'.
+   */
+  opensSection?: string;
   requiredLevel: number;
   requiredAddressStatus: string | null;
   cost: ActionCost;
   gain: ActionGain;
   description: string;
+  /** Durée de la mission en secondes (le timer avant complétion). */
+  durationSec: number;
   /** Sous-missions du thème, révélées au dos de la carte (peut être vide). */
   subMissions: SubMission[];
 }
 
-/** Réponse de `POST /action/{id}` en cas de succès. */
+/**
+ * Réponse de `POST /action/{id}` en cas de succès : l'action est DÉMARRÉE
+ * (mission ajoutée à `state.missions`). Les gains sont appliqués à la
+ * complétion du timer, pas ici.
+ */
 export interface PerformActionResult {
-  /** État joueur à jour après l'action. */
+  /** État joueur à jour après le démarrage (mission en cours ajoutée). */
   state: PlayerState;
-  /** Identifiant de l'action effectuée. */
+  /** Identifiant de l'action démarrée. */
   actionId: string;
-  /** Gains réellement appliqués (artefacts = valeur tirée dans [min, max]). */
-  gained: { electricity: number; artifacts: number; xp: number };
 }
 
 /** Réponse d'erreur d'une action. */

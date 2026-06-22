@@ -12,7 +12,7 @@
 
 import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
-import { getState, spendEnergy, performAction } from './state';
+import { getState, spendEnergy, startAction } from './state';
 import { ACTIONS } from './actions';
 
 export interface Env {
@@ -23,6 +23,14 @@ export interface Env {
   ALLOWED_ORIGIN?: string;
 }
 
+// Toute origine localhost (n'importe quel port) est acceptée en dev, en plus
+// des origines configurées — évite de casser le CORS quand `next dev` change de
+// port (3000 occupé → 3001, etc.). Sans risque : l'accès exige de toute façon
+// un ID token Firebase valide.
+function isLocalhost(origin: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 function corsHeaders(env: Env, origin: string | null): Record<string, string> {
   const allowed = (env.ALLOWED_ORIGIN ?? '*')
     .split(',')
@@ -31,7 +39,7 @@ function corsHeaders(env: Env, origin: string | null): Record<string, string> {
   const allowAll = allowed.includes('*');
   const allowOrigin = allowAll
     ? '*'
-    : origin && allowed.includes(origin)
+    : origin && (allowed.includes(origin) || isLocalhost(origin))
       ? origin
       : (allowed[0] ?? '');
 
@@ -127,9 +135,21 @@ export default {
       const actionId = decodeURIComponent(
         url.pathname.slice('/action/'.length)
       );
-      const result = await performAction(env, uid, actionId);
+      let subMissionId: string | undefined;
+      try {
+        const body = (await request.json()) as { subMissionId?: unknown };
+        if (body && typeof body.subMissionId === 'string') {
+          subMissionId = body.subMissionId;
+        }
+      } catch {
+        // Corps vide ou invalide : pas de sous-mission précisée.
+      }
+      const result = await startAction(env, uid, actionId, subMissionId);
       if (!result.ok && result.reason === 'unknown_action') {
         return json({ error: 'unknown_action' }, 404, cors);
+      }
+      if (!result.ok && result.reason === 'already_active') {
+        return json({ error: 'already_active' }, 409, cors);
       }
       if (!result.ok && result.reason === 'insufficient') {
         return json(

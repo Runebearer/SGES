@@ -21,6 +21,7 @@ import {
   type PlayerState,
   type ActionCost,
   type PerformActionResult,
+  type Address,
 } from '@sges/api-contract';
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
@@ -31,11 +32,20 @@ interface StoredEnergy {
   day: string;
 }
 
+interface StoredMission {
+  actionId: string;
+  startedAt: number; // ms epoch (horloge serveur)
+  endsAt: number; // ms epoch
+  subMissionId?: string;
+}
+
 interface StoredPlayer {
   energy: StoredEnergy;
   electricity: number;
   artifacts: number;
   xp: number;
+  missions: StoredMission[];
+  addresses: Address[];
 }
 
 const DEFAULT_TZ = 'Europe/Paris';
@@ -128,6 +138,8 @@ function defaults(today: string): StoredPlayer {
     electricity: 0,
     artifacts: 0,
     xp: 0,
+    missions: [],
+    addresses: [],
   };
 }
 
@@ -145,6 +157,32 @@ function parse(raw: string | null): StoredPlayer | null {
       electricity: clamp(num(o.electricity, 0), 0, MAX_ELECTRICITY),
       artifacts: clamp(Math.floor(num(o.artifacts, 0)), 0, MAX_ARTIFACTS),
       xp: Math.max(0, num(o.xp, 0)),
+      missions: Array.isArray(o.missions)
+        ? o.missions
+            .filter(
+              (m: any) =>
+                m &&
+                typeof m.actionId === 'string' &&
+                typeof m.startedAt === 'number' &&
+                typeof m.endsAt === 'number'
+            )
+            .map((m: any) => ({
+              actionId: m.actionId,
+              startedAt: m.startedAt,
+              endsAt: m.endsAt,
+              ...(typeof m.subMissionId === 'string'
+                ? { subMissionId: m.subMissionId }
+                : {}),
+            }))
+        : [],
+      addresses: Array.isArray(o.addresses)
+        ? o.addresses
+            .filter(
+              (a: any) =>
+                a && typeof a.id === 'string' && typeof a.name === 'string'
+            )
+            .map((a: any) => ({ id: a.id, name: a.name }))
+        : [],
     };
   } catch {
     return null;
@@ -160,10 +198,77 @@ function applyDailyRefill(stored: StoredPlayer, today: string): StoredPlayer {
   return stored;
 }
 
-// Charge l'état effectif (recharge appliquée), sans écrire en KV.
-async function load(env: Env, uid: string, today: string): Promise<StoredPlayer> {
-  const stored = parse(await env.ENERGY_KV.get(key(uid))) ?? defaults(today);
-  return applyDailyRefill(stored, today);
+// Finalise les missions dont le timer est écoulé : applique leurs gains
+// (électricité / artefacts aléatoires / xp) et les retire de la liste.
+function completeMissions(
+  stored: StoredPlayer,
+  now: number
+): { stored: StoredPlayer; completed: number } {
+  if (stored.missions.length === 0) return { stored, completed: 0 };
+
+  const stillRunning: StoredMission[] = [];
+  let electricity = stored.electricity;
+  let artifacts = stored.artifacts;
+  let xp = stored.xp;
+  const addresses = [...stored.addresses];
+  let completed = 0;
+
+  for (const m of stored.missions) {
+    if (m.endsAt <= now) {
+      const def = ACTIONS_BY_ID[m.actionId];
+      if (def) {
+        electricity = clamp(
+          electricity + def.gain.electricity,
+          0,
+          MAX_ELECTRICITY
+        );
+        artifacts = clamp(
+          artifacts + randInt(def.gain.artifactsMin, def.gain.artifactsMax),
+          0,
+          MAX_ARTIFACTS
+        );
+        xp = Math.max(0, xp + def.gain.xp);
+
+        // Recherche : débloque la PROCHAINE adresse du pool non encore possédée.
+        const sub = def.subMissions.find((s) => s.id === m.subMissionId);
+        const next = sub?.unlocksAddresses?.find(
+          (a) => !addresses.some((owned) => owned.id === a.id)
+        );
+        if (next) addresses.push({ id: next.id, name: next.name });
+      }
+      completed++;
+    } else {
+      stillRunning.push(m);
+    }
+  }
+
+  if (completed === 0) return { stored, completed: 0 };
+  return {
+    stored: {
+      ...stored,
+      electricity,
+      artifacts,
+      xp,
+      missions: stillRunning,
+      addresses,
+    },
+    completed,
+  };
+}
+
+// Charge l'état effectif : recharge d'énergie (en mémoire) + complétion des
+// missions écoulées (gains appliqués). `dirty` = true si une mission a été
+// complétée → l'appelant DOIT persister (les gains sont irréversibles).
+async function loadReconciled(
+  env: Env,
+  uid: string,
+  today: string,
+  now: number
+): Promise<{ stored: StoredPlayer; dirty: boolean }> {
+  const base = parse(await env.ENERGY_KV.get(key(uid))) ?? defaults(today);
+  const refilled = applyDailyRefill(base, today);
+  const { stored, completed } = completeMissions(refilled, now);
+  return { stored, dirty: completed > 0 };
 }
 
 function toState(stored: StoredPlayer, env: Env): PlayerState {
@@ -181,13 +286,30 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
     level,
     xpFloor,
     xpNext,
+    missions: stored.missions.map((m) => {
+      const def = ACTIONS_BY_ID[m.actionId];
+      return {
+        actionId: m.actionId,
+        name: def ? def.name : m.actionId,
+        startedAt: m.startedAt,
+        endsAt: m.endsAt,
+        durationSec: def
+          ? def.durationSec
+          : Math.max(0, Math.round((m.endsAt - m.startedAt) / 1000)),
+        ...(m.subMissionId ? { subMissionId: m.subMissionId } : {}),
+      };
+    }),
+    addresses: stored.addresses,
   };
 }
 
-/** Lit l'état complet du joueur (recharge quotidienne d'énergie appliquée). */
+/** Lit l'état complet du joueur (recharge d'énergie + complétion des missions). */
 export async function getState(env: Env, uid: string): Promise<PlayerState> {
-  const today = dayInTz(new Date(), tz(env));
-  return toState(await load(env, uid, today), env);
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const { stored, dirty } = await loadReconciled(env, uid, today, now);
+  if (dirty) await env.ENERGY_KV.put(key(uid), JSON.stringify(stored));
+  return toState(stored, env);
 }
 
 export type SpendResult =
@@ -207,8 +329,9 @@ export async function spendEnergy(
   uid: string,
   amount: number
 ): Promise<SpendResult> {
-  const today = dayInTz(new Date(), tz(env));
-  const stored = await load(env, uid, today);
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const { stored } = await loadReconciled(env, uid, today, now);
   if (amount > stored.energy.value) {
     return { ok: false, available: stored.energy.value };
   }
@@ -230,6 +353,7 @@ function randInt(min: number, max: number): number {
 export type ActionResult =
   | { ok: true; result: PerformActionResult }
   | { ok: false; reason: 'unknown_action' }
+  | { ok: false; reason: 'already_active' }
   | {
       ok: false;
       reason: 'insufficient';
@@ -238,27 +362,35 @@ export type ActionResult =
     };
 
 /**
- * Exécute une action du catalogue : vérifie les coûts, applique coûts et gains
- * (artefacts = tirage aléatoire), écrit l'état. Échoue sans débit si les
- * ressources sont insuffisantes. `requiredLevel` / `requiredAddressStatus` ne
- * sont volontairement PAS encore vérifiés (systèmes à venir).
+ * DÉMARRE une action : refuse si elle est déjà en cours, déduit les coûts
+ * (refus sans débit si insuffisant) et ajoute une mission avec son timer
+ * (`endsAt = now + durationSec`). Les GAINS sont appliqués à la complétion du
+ * timer (cf. completeMissions), pas ici. `requiredLevel` /
+ * `requiredAddressStatus` ne sont volontairement PAS encore vérifiés.
  */
-export async function performAction(
+export async function startAction(
   env: Env,
   uid: string,
-  actionId: string
+  actionId: string,
+  subMissionId?: string
 ): Promise<ActionResult> {
   const def = ACTIONS_BY_ID[actionId];
   if (!def) return { ok: false, reason: 'unknown_action' };
 
-  const today = dayInTz(new Date(), tz(env));
-  const stored = await load(env, uid, today);
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const { stored } = await loadReconciled(env, uid, today, now);
+
+  // Une seule instance par action à la fois.
+  if (stored.missions.some((m) => m.actionId === actionId)) {
+    return { ok: false, reason: 'already_active' };
+  }
+
   const have = {
     energy: stored.energy.value,
     electricity: stored.electricity,
     artifacts: stored.artifacts,
   };
-
   if (
     have.energy < def.cost.energy ||
     have.electricity < def.cost.electricity ||
@@ -267,30 +399,22 @@ export async function performAction(
     return { ok: false, reason: 'insufficient', cost: def.cost, have };
   }
 
-  const gained = {
-    electricity: def.gain.electricity,
-    artifacts: randInt(def.gain.artifactsMin, def.gain.artifactsMax),
-    xp: def.gain.xp,
-  };
-
   const updated: StoredPlayer = {
+    ...stored,
     energy: { value: stored.energy.value - def.cost.energy, day: today },
-    electricity: clamp(
-      stored.electricity - def.cost.electricity + gained.electricity,
-      0,
-      MAX_ELECTRICITY
-    ),
-    artifacts: clamp(
-      stored.artifacts - def.cost.artifacts + gained.artifacts,
-      0,
-      MAX_ARTIFACTS
-    ),
-    xp: Math.max(0, stored.xp + gained.xp),
+    electricity: stored.electricity - def.cost.electricity,
+    artifacts: stored.artifacts - def.cost.artifacts,
+    missions: [
+      ...stored.missions,
+      {
+        actionId,
+        startedAt: now,
+        endsAt: now + def.durationSec * 1000,
+        ...(subMissionId ? { subMissionId } : {}),
+      },
+    ],
   };
   await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));
 
-  return {
-    ok: true,
-    result: { state: toState(updated, env), actionId, gained },
-  };
+  return { ok: true, result: { state: toState(updated, env), actionId } };
 }

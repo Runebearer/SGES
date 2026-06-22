@@ -58,6 +58,15 @@
       "gain": "Reward",
       "empty": "No action available."
     },
+    "missions_active": {
+      "title": "Active missions"
+    },
+    "research": {
+      "back": "Back",
+      "available_title": "Available research",
+      "addresses_title": "Unlocked coordinates",
+      "addresses_empty": "No coordinates discovered yet."
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
@@ -100,6 +109,10 @@
         "title": "Rewards",
         "subtitle": "// Unlocked honors and rewards",
         "empty": "No rewards unlocked yet."
+      },
+      "research": {
+        "title": "Archaeological Research",
+        "subtitle": "// Cartouche translation — Gate coordinates"
       }
     }
   },
