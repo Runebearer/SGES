@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
-import type { ActionDef, ActionSection } from '@sges/api-contract';
+import type { ActionDef, ActionSection, SubMission } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
@@ -15,7 +15,13 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
   },
 });
 
-type SectionId = 'dashboard' | 'sgcf' | 'missions' | 'alert' | 'rewards';
+type SectionId =
+  | 'dashboard'
+  | 'sgcf'
+  | 'missions'
+  | 'alert'
+  | 'rewards'
+  | 'research';
 
 const SECTION_IDS: readonly SectionId[] = [
   'dashboard',
@@ -23,6 +29,7 @@ const SECTION_IDS: readonly SectionId[] = [
   'missions',
   'alert',
   'rewards',
+  'research',
 ];
 // Clé localStorage : mémorise l'onglet courant pour le restaurer au refresh.
 const SECTION_STORAGE_KEY = 'sges:dashboard:section';
@@ -64,6 +71,13 @@ const ICONS: Record<SectionId, JSX.Element> = {
       <path d="M8.5 20h7l-1-3h-5z" />
     </svg>
   ),
+  // Non présente dans la barre de navigation (vue atteinte via la carte).
+  research: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="11" cy="11" r="6" />
+      <path d="M16 16l4 4" />
+    </svg>
+  ),
 };
 
 // Barre de niveau d'énergie : se remplit selon `value` (0–100). La valeur
@@ -87,6 +101,50 @@ function EnergyBar({ label, value }: { label: string; value: number | null }) {
       >
         <div className="energy-fill" style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  );
+}
+
+// Œil de Râ (œil oudjat) : symbole des artefacts.
+const EYE_OF_RA = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {/* Sourcil */}
+    <path d="M4 8c4.5-3.5 11-3.5 16 0.5" />
+    {/* Paupière supérieure */}
+    <path d="M3 12.5c4-4.5 13-4.5 18 0" />
+    {/* Paupière inférieure */}
+    <path d="M21 12.5c-3.5 3.5-9 3.5-13 1" />
+    {/* Pupille */}
+    <circle cx="11" cy="12.2" r="2.1" fill="currentColor" stroke="none" />
+    {/* Larme verticale */}
+    <path d="M8 14l-2 4.6" />
+    {/* Volute */}
+    <path d="M15 14.2c1.2 2.4 0.4 4-2 4.9" />
+  </svg>
+);
+
+// Petite fenêtre HUD du nombre d'artefacts possédés (toujours visible).
+function ArtifactWindow() {
+  const { t } = useTranslation('common');
+  const { player } = useAuth();
+  return (
+    <div
+      className="artifact-window"
+      title={t('dashboard.sections.dashboard.cards.artifacts')}
+    >
+      <span className="artifact-icon" aria-hidden="true">
+        {EYE_OF_RA}
+      </span>
+      <span className="artifact-count">
+        {player ? player.artifacts : '—'}
+      </span>
     </div>
   );
 }
@@ -165,30 +223,24 @@ function ActiveMissions() {
   );
 }
 
-// Cartes d'action : carte carrée holographique qui se retourne au clic (flip 3D)
-// pour révéler les sous-missions. Cliquer une sous-mission DÉMARRE l'action
-// parente (timer côté Worker). Filtrées par section (cf. ActionDef.section).
-function ActionCards({ section }: { section: ActionSection }) {
-  const { t } = useTranslation('common');
-  const { actions, player, performAction } = useAuth();
-  const [flipped, setFlipped] = useState<string | null>(null);
+// Lancement d'actions partagé (cartes ET vue recherche) : état busy/erreur, tic
+// d'animation des jauges, et démarrage d'une sous-mission (timer côté Worker).
+function useActionLauncher(scope: ActionDef[]) {
+  const { player, performAction } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [errored, setErrored] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const list = actions.filter((a) => a.section === section);
   const hasRunning = (player?.missions ?? []).some((m) =>
-    list.some((a) => a.id === m.actionId)
+    scope.some((a) => a.id === m.actionId)
   );
 
-  // Tic d'animation des jauges sur les sous-missions en cours.
+  // Tic d'animation des jauges tant qu'une mission du périmètre tourne.
   useEffect(() => {
     if (!hasRunning) return;
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [hasRunning]);
-
-  if (list.length === 0) return null;
 
   const missionFor = (actionId: string) =>
     (player?.missions ?? []).find((m) => m.actionId === actionId);
@@ -199,11 +251,11 @@ function ActionCards({ section }: { section: ActionSection }) {
     player.electricity >= a.cost.electricity &&
     player.artifacts >= a.cost.artifacts;
 
-  const start = async (a: ActionDef) => {
+  const start = async (a: ActionDef, sub: SubMission) => {
     setBusy(a.id);
     setErrored(null);
     try {
-      await performAction(a.id);
+      await performAction(a.id, sub.id);
     } catch {
       setErrored(a.id);
     } finally {
@@ -211,38 +263,108 @@ function ActionCards({ section }: { section: ActionSection }) {
     }
   };
 
+  return { now, busy, errored, missionFor, canAfford, start };
+}
+
+type Launcher = ReturnType<typeof useActionLauncher>;
+
+// Bouton d'une sous-mission : démarre l'action parente, affiche la durée, et —
+// en cours — le compte à rebours + une jauge de complétion.
+function SubMissionButton({
+  action,
+  sub,
+  launcher,
+}: {
+  action: ActionDef;
+  sub: SubMission;
+  launcher: Launcher;
+}) {
+  const { t } = useTranslation('common');
+  const { now, busy, errored, missionFor, canAfford, start } = launcher;
+  const mission = missionFor(action.id);
+  const running = !!mission;
+  const affordable = canAfford(action);
+  let pct = 0;
+  let remaining = 0;
+  if (mission) {
+    const total = mission.endsAt - mission.startedAt;
+    const done = Math.min(total, Math.max(0, now - mission.startedAt));
+    pct = total > 0 ? (done / total) * 100 : 100;
+    remaining = Math.max(0, Math.ceil((mission.endsAt - now) / 1000));
+  }
+  return (
+    <li>
+      <button
+        type="button"
+        className="submission"
+        disabled={busy === action.id || running || !affordable}
+        onClick={() => start(action, sub)}
+      >
+        <span className="submission-name">{sub.name}</span>
+        <span className="submission-state">
+          {running
+            ? formatClock(remaining)
+            : errored === action.id
+              ? t('dashboard.actions.insufficient')
+              : formatDuration(action.durationSec)}
+        </span>
+      </button>
+      {running && (
+        <div
+          className="submission-track"
+          role="progressbar"
+          aria-label={sub.name}
+          aria-valuenow={Math.round(pct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div className="submission-fill" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+// Cartes d'action : carte carrée holographique. Par défaut elle se retourne au
+// clic (flip 3D) pour révéler ses sous-missions. Si l'action définit
+// `opensSection`, le clic NAVIGUE vers cette vue (ex. recherche) au lieu du flip.
+function ActionCards({
+  section,
+  onOpenSection,
+}: {
+  section: ActionSection;
+  onOpenSection: (s: string) => void;
+}) {
+  const { actions } = useAuth();
+  const [flipped, setFlipped] = useState<string | null>(null);
+  const list = actions.filter((a) => a.section === section);
+  const launcher = useActionLauncher(list);
+  if (list.length === 0) return null;
+
   return (
     <div className="actions-list">
       {list.map((a) => {
+        const navigates = !!a.opensSection;
+        const open = () =>
+          navigates ? onOpenSection(a.opensSection as string) : setFlipped(a.id);
         const visible = a.subMissions.filter((s) => s.available !== false);
-        const mission = missionFor(a.id);
-        const running = !!mission;
-        const affordable = canAfford(a);
-        let pct = 0;
-        let remaining = 0;
-        if (mission) {
-          const total = mission.endsAt - mission.startedAt;
-          const done = Math.min(total, Math.max(0, now - mission.startedAt));
-          pct = total > 0 ? (done / total) * 100 : 100;
-          remaining = Math.max(0, Math.ceil((mission.endsAt - now) / 1000));
-        }
         return (
           <div
             key={a.id}
             className={`action-card${flipped === a.id ? ' flipped' : ''}`}
           >
             <div className="action-inner">
-              {/* Recto : titre + descriptif. Clic → retourne la carte. */}
+              {/* Recto : titre + descriptif. Clic → flip OU navigation. */}
               <div
                 className="action-face action-front"
                 role="button"
                 tabIndex={0}
                 aria-label={a.name}
-                onClick={() => setFlipped(a.id)}
+                onClick={open}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setFlipped(a.id);
+                    open();
                   }
                 }}
               >
@@ -250,64 +372,103 @@ function ActionCards({ section }: { section: ActionSection }) {
                 <p className="action-desc">{a.description}</p>
               </div>
 
-              {/* Verso : sous-missions (cliquables → démarrent l'action). */}
-              <div className="action-face action-back">
-                <div className="action-back-head">
-                  <button
-                    type="button"
-                    className="action-back-btn"
-                    onClick={() => setFlipped(null)}
-                    aria-label="Retour"
-                  >
-                    ←
-                  </button>
-                  <h3 className="action-name action-back-title">{a.name}</h3>
+              {/* Verso : sous-missions (seulement pour les cartes à flip). */}
+              {!navigates && (
+                <div className="action-face action-back">
+                  <div className="action-back-head">
+                    <button
+                      type="button"
+                      className="action-back-btn"
+                      onClick={() => setFlipped(null)}
+                      aria-label="Retour"
+                    >
+                      ←
+                    </button>
+                    <h3 className="action-name action-back-title">{a.name}</h3>
+                  </div>
+                  <ul className="submission-list">
+                    {visible.length === 0 ? (
+                      <li className="submission-empty">À venir…</li>
+                    ) : (
+                      visible.map((s) => (
+                        <SubMissionButton
+                          key={s.id}
+                          action={a}
+                          sub={s}
+                          launcher={launcher}
+                        />
+                      ))
+                    )}
+                  </ul>
                 </div>
-                <ul className="submission-list">
-                  {visible.length === 0 ? (
-                    <li className="submission-empty">À venir…</li>
-                  ) : (
-                    visible.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          className="submission"
-                          disabled={busy === a.id || running || !affordable}
-                          onClick={() => start(a)}
-                        >
-                          <span className="submission-name">{s.name}</span>
-                          <span className="submission-state">
-                            {running
-                              ? formatClock(remaining)
-                              : errored === a.id
-                                ? t('dashboard.actions.insufficient')
-                                : formatDuration(a.durationSec)}
-                          </span>
-                        </button>
-                        {running && (
-                          <div
-                            className="submission-track"
-                            role="progressbar"
-                            aria-label={s.name}
-                            aria-valuenow={Math.round(pct)}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                          >
-                            <div
-                              className="submission-fill"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        )}
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
+              )}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Vue « Recherche archéologique » (atteinte via la carte). Deux sections :
+// 1) recherches lançables (sous-missions) ; 2) coordonnées débloquées.
+function ResearchView({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation('common');
+  const { actions, player } = useAuth();
+  const researchActions = actions.filter((a) => a.opensSection === 'research');
+  const launcher = useActionLauncher(researchActions);
+  const addresses = player?.addresses ?? [];
+
+  return (
+    <div className="research-view">
+      <div className="research-header">
+        <button type="button" className="research-back" onClick={onBack}>
+          ← {t('dashboard.research.back')}
+        </button>
+        <ArtifactWindow />
+      </div>
+
+      <section className="research-block">
+        <h2 className="research-block-title">
+          {t('dashboard.research.available_title')}
+        </h2>
+        <ul className="submission-list research-missions">
+          {researchActions.flatMap((a) =>
+            a.subMissions
+              .filter((s) => s.available !== false)
+              .map((s) => (
+                <SubMissionButton
+                  key={`${a.id}:${s.id}`}
+                  action={a}
+                  sub={s}
+                  launcher={launcher}
+                />
+              ))
+          )}
+        </ul>
+      </section>
+
+      <section className="research-block">
+        <h2 className="research-block-title">
+          {t('dashboard.research.addresses_title')}
+        </h2>
+        {addresses.length === 0 ? (
+          <p className="research-empty">
+            {t('dashboard.research.addresses_empty')}
+          </p>
+        ) : (
+          <ul className="address-list">
+            {addresses.map((addr) => (
+              <li key={addr.id} className="address">
+                <span className="address-glyph" aria-hidden="true">
+                  ◈
+                </span>
+                {addr.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -406,7 +567,7 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title>{`SGES — ${t('dashboard.page_title')}`}</title>
+        <title>{`SGES — ${t(`dashboard.sections.${active}.title`)}`}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link
           href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&display=swap"
@@ -555,8 +716,11 @@ export default function Dashboard() {
                       {t('dashboard.sections.dashboard.cards.electricity')}
                     </span>
                   </div>
-                  <div className="stat">
-                    {/* Compteur d'artefacts collectés. */}
+                  <div className="stat stat-artifact">
+                    {/* Compteur d'artefacts collectés (œil de Râ, doré). */}
+                    <span className="stat-icon" aria-hidden="true">
+                      {EYE_OF_RA}
+                    </span>
                     <span className="stat-value">
                       {player ? player.artifacts : '—'}
                     </span>
@@ -576,11 +740,23 @@ export default function Dashboard() {
                 <div className="panel">
                   <p>{t('dashboard.sections.sgcf.body')}</p>
                 </div>
-                <ActionCards section="sgcf" />
+                <ActionCards
+                  section="sgcf"
+                  onOpenSection={(s) => selectSection(s as SectionId)}
+                />
               </>
             )}
 
-            {active === 'missions' && <ActionCards section="missions" />}
+            {active === 'missions' && (
+              <ActionCards
+                section="missions"
+                onOpenSection={(s) => selectSection(s as SectionId)}
+              />
+            )}
+
+            {active === 'research' && (
+              <ResearchView onBack={() => selectSection('sgcf')} />
+            )}
 
             {active === 'alert' && (
               <div className="panel panel-empty">
@@ -905,6 +1081,46 @@ export default function Dashboard() {
           box-shadow: 0 0 16px rgba(37, 99, 255, 0.6);
         }
 
+        /* ---- FENÊTRE ARTEFACTS (plume de Maât, thème doré) ---- */
+        .dashboard-screen .artifact-window {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 12px;
+          font-family: monospace;
+          border: 1px solid rgba(212, 175, 55, 0.45);
+          background: rgba(212, 175, 55, 0.08);
+          box-shadow: 0 0 12px rgba(212, 175, 55, 0.15),
+            inset 0 0 14px rgba(212, 175, 55, 0.06);
+          clip-path: polygon(
+            0 6px,
+            6px 0,
+            100% 0,
+            100% calc(100% - 6px),
+            calc(100% - 6px) 100%,
+            0 100%
+          );
+        }
+
+        .dashboard-screen .artifact-icon {
+          display: inline-flex;
+          width: 18px;
+          height: 18px;
+          color: #d4af37;
+          filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.55));
+        }
+        .dashboard-screen .artifact-icon svg {
+          width: 100%;
+          height: 100%;
+        }
+
+        .dashboard-screen .artifact-count {
+          font-size: 1rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: #f4e4b8;
+        }
+
         /* ===== CONTENU ===== */
         .dashboard-screen .content {
           position: relative;
@@ -1126,6 +1342,29 @@ export default function Dashboard() {
           text-transform: uppercase;
           color: var(--text-main);
           opacity: 0.8;
+        }
+
+        /* ---- CARTE ARTEFACTS : œil de Râ, thème doré ---- */
+        .dashboard-screen .stat-artifact {
+          border-color: rgba(212, 175, 55, 0.35);
+          border-left-color: #d4af37;
+        }
+        .dashboard-screen .stat-artifact:hover {
+          box-shadow: 0 0 24px rgba(212, 175, 55, 0.22);
+        }
+        .dashboard-screen .stat-icon {
+          width: 30px;
+          height: 30px;
+          color: #d4af37;
+          filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.5));
+        }
+        .dashboard-screen .stat-icon svg {
+          width: 100%;
+          height: 100%;
+        }
+        .dashboard-screen .stat-artifact .stat-value {
+          color: #f4e4b8;
+          text-shadow: 0 0 14px rgba(212, 175, 55, 0.5);
         }
 
         /* ---- PANEL ---- */
@@ -1559,6 +1798,116 @@ export default function Dashboard() {
           background: linear-gradient(90deg, #7e22ce, var(--violet), #c084fc);
           box-shadow: 0 0 10px rgba(168, 85, 247, 0.7);
           transition: width 0.25s linear;
+        }
+
+        /* ---- VUE RECHERCHE ---- */
+        .dashboard-screen .research-view {
+          display: flex;
+          flex-direction: column;
+          gap: 26px;
+          max-width: 720px;
+        }
+
+        /* En-tête de la vue : bouton retour à gauche, widget artefacts à droite. */
+        .dashboard-screen .research-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .dashboard-screen .research-back {
+          font-family: monospace;
+          font-size: 0.76rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+          background: transparent;
+          border: 1px solid var(--electric-deep);
+          padding: 8px 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .dashboard-screen .research-back:hover {
+          background: var(--electric);
+          color: #030712;
+          box-shadow: 0 0 14px rgba(37, 99, 255, 0.5);
+        }
+
+        .dashboard-screen .research-block {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          padding: 22px 24px;
+          background: var(--panel-bg);
+          backdrop-filter: blur(6px);
+          border: 1px solid rgba(37, 99, 255, 0.3);
+          border-left: 4px solid var(--electric);
+          clip-path: polygon(
+            0 14px,
+            14px 0,
+            100% 0,
+            100% calc(100% - 14px),
+            calc(100% - 14px) 100%,
+            0 100%
+          );
+        }
+
+        .dashboard-screen .research-block-title {
+          margin: 0;
+          font-family: monospace;
+          font-size: 0.8rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+        }
+
+        .dashboard-screen .research-missions {
+          max-width: 440px;
+        }
+
+        .dashboard-screen .research-empty {
+          margin: 0;
+          font-family: monospace;
+          font-size: 0.82rem;
+          letter-spacing: 1px;
+          color: rgba(209, 225, 248, 0.4);
+        }
+
+        .dashboard-screen .address-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 12px;
+        }
+
+        .dashboard-screen .address {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-family: monospace;
+          font-size: 0.9rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: #fff;
+          padding: 12px 14px;
+          background: rgba(37, 99, 255, 0.1);
+          border: 1px solid rgba(120, 170, 255, 0.35);
+          border-left: 3px solid var(--electric-bright);
+          clip-path: polygon(
+            0 6px,
+            6px 0,
+            100% 0,
+            100% calc(100% - 6px),
+            calc(100% - 6px) 100%,
+            0 100%
+          );
+        }
+        .dashboard-screen .address-glyph {
+          color: var(--electric-bright);
+          text-shadow: 0 0 8px rgba(77, 139, 255, 0.7);
         }
 
         /* ===== RESPONSIVE / MOBILE ===== */

@@ -43,6 +43,8 @@ export const ACTIONS: ActionDef[] = [
     id: 'archaeological_research',
     name: 'Recherche Archéologique',
     section: 'sgcf',
+    // Cliquer la carte ouvre la vue dédiée « research » (au lieu du flip).
+    opensSection: 'research',
     requiredLevel: 1,
     requiredAddressStatus: null,
     cost: { energy: 20, electricity: 15, artifacts: 10 },
@@ -50,11 +52,19 @@ export const ACTIONS: ActionDef[] = [
     durationSec: 900,
     description:
       "Le Dr. Daniel Jackson tente de traduire les cartouches de symboles récupérés pour calculer la dérive stellaire.",
-    subMissions: [{ id: 'abydos', name: "Cartouche d'Abydos" }],
+    subMissions: [
+      {
+        id: 'abydos',
+        name: "Cartouche d'Abydos",
+        // Pool d'adresses débloquées (1 par complétion, dans l'ordre).
+        // À compléter avec la liste fournie ultérieurement.
+        unlocksAddresses: [{ id: 'chulak', name: 'Chulak' }],
+      },
+    ],
   },
   {
     id: 'malp_recon',
-    name: 'Mission : Reconnaissance MALP',
+    name: 'Reconnaissance MALP',
     section: 'missions',
     requiredLevel: 1,
     requiredAddressStatus: 'Découverte',
@@ -67,7 +77,7 @@ export const ACTIONS: ActionDef[] = [
   },
   {
     id: 'planetary_archaeology',
-    name: 'Mission : Astro-archéologie',
+    name: 'Astro-archéologie',
     section: 'missions',
     requiredLevel: 1,
     requiredAddressStatus: 'Vivable',

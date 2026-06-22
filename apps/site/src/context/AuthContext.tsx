@@ -32,8 +32,11 @@ type AuthContextValue = {
   refreshPlayer: () => Promise<void>;
   // Dépense de l'énergie pour une action ; met à jour l'énergie du joueur.
   spendEnergy: (amount?: number, action?: string) => Promise<SpendEnergyResponse>;
-  // Exécute une action du catalogue ; met à jour tout l'état joueur.
-  performAction: (actionId: string) => Promise<PerformActionResult>;
+  // Démarre une action (timer) ; met à jour tout l'état joueur.
+  performAction: (
+    actionId: string,
+    subMissionId?: string
+  ) => Promise<PerformActionResult>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
@@ -129,11 +132,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const performAction = async (
-    actionId: string
+    actionId: string,
+    subMissionId?: string
   ): Promise<PerformActionResult> => {
     const u = auth.currentUser;
     if (!u) throw new Error('not_authenticated');
-    const res = await performActionApi(() => u.getIdToken(), actionId);
+    const res = await performActionApi(
+      () => u.getIdToken(),
+      actionId,
+      subMissionId
+    );
     // La réponse porte l'état joueur complet à jour : on le remplace.
     setPlayer(res.state);
     return res;

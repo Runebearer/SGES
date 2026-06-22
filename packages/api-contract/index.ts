@@ -57,6 +57,8 @@ export interface PlayerState {
   xpNext: number | null;
   /** Missions en cours (timers serveur-autoritaires). */
   missions: ActiveMission[];
+  /** Coordonnées (adresses) débloquées par les recherches terminées. */
+  addresses: Address[];
 }
 
 /**
@@ -73,6 +75,8 @@ export interface ActiveMission {
   endsAt: number;
   /** Durée totale en secondes (pour la jauge). */
   durationSec: number;
+  /** Sous-mission lancée (résout les déblocages d'adresse à la complétion). */
+  subMissionId?: string;
 }
 
 /** Corps de `POST /energy/spend`. */
@@ -117,6 +121,12 @@ export interface ActionGain {
 /** Section du dashboard où afficher la carte d'une action. */
 export type ActionSection = 'sgcf' | 'missions';
 
+/** Coordonnée (adresse) de la Porte des étoiles, débloquée par la recherche. */
+export interface Address {
+  id: string;
+  name: string;
+}
+
 /**
  * Sous-mission rattachée à une action (révélée au dos de la carte). Pour
  * l'instant purement descriptive ; deviendra exécutable ultérieurement.
@@ -129,6 +139,11 @@ export interface SubMission {
    * `false` = masquée pour l'instant (déblocage sous conditions à venir).
    */
   available?: boolean;
+  /**
+   * Pool ordonné d'adresses que cette recherche peut débloquer. À chaque
+   * complétion, le Worker débloque la PROCHAINE adresse non encore possédée.
+   */
+  unlocksAddresses?: Address[];
 }
 
 /**
@@ -142,6 +157,11 @@ export interface ActionDef {
   name: string;
   /** Section du dashboard où afficher la carte ; null = pas encore placée. */
   section: ActionSection | null;
+  /**
+   * Si défini, cliquer la carte NAVIGUE vers cette vue du dashboard au lieu de
+   * se retourner (flip). Ex. 'research'.
+   */
+  opensSection?: string;
   requiredLevel: number;
   requiredAddressStatus: string | null;
   cost: ActionCost;

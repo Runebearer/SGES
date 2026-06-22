@@ -61,6 +61,12 @@
     "missions_active": {
       "title": "Missions en cours"
     },
+    "research": {
+      "back": "Retour",
+      "available_title": "Recherches disponibles",
+      "addresses_title": "Coordonnées débloquées",
+      "addresses_empty": "Aucune coordonnée découverte pour le moment."
+    },
     "nav": {
       "dashboard": "Dashboard",
       "sgcf": "SGC-f",
@@ -103,6 +109,10 @@
         "title": "Récompenses",
         "subtitle": "// Distinctions et récompenses débloquées",
         "empty": "Aucune récompense débloquée pour le moment."
+      },
+      "research": {
+        "title": "Recherche Archéologique",
+        "subtitle": "// Traduction des cartouches — coordonnées de la Porte"
       }
     }
   },

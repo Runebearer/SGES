@@ -98,12 +98,17 @@ export async function fetchActions(
  */
 export async function performAction(
   getToken: () => Promise<string>,
-  actionId: string
+  actionId: string,
+  subMissionId?: string
 ): Promise<PerformActionResult> {
   const token = await getToken();
   const res = await fetch(`${baseUrl()}/action/${encodeURIComponent(actionId)}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(subMissionId ? { subMissionId } : {}),
   });
 
   if (res.status === 402) {

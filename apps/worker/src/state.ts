@@ -21,6 +21,7 @@ import {
   type PlayerState,
   type ActionCost,
   type PerformActionResult,
+  type Address,
 } from '@sges/api-contract';
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
@@ -35,6 +36,7 @@ interface StoredMission {
   actionId: string;
   startedAt: number; // ms epoch (horloge serveur)
   endsAt: number; // ms epoch
+  subMissionId?: string;
 }
 
 interface StoredPlayer {
@@ -43,6 +45,7 @@ interface StoredPlayer {
   artifacts: number;
   xp: number;
   missions: StoredMission[];
+  addresses: Address[];
 }
 
 const DEFAULT_TZ = 'Europe/Paris';
@@ -136,6 +139,7 @@ function defaults(today: string): StoredPlayer {
     artifacts: 0,
     xp: 0,
     missions: [],
+    addresses: [],
   };
 }
 
@@ -166,7 +170,18 @@ function parse(raw: string | null): StoredPlayer | null {
               actionId: m.actionId,
               startedAt: m.startedAt,
               endsAt: m.endsAt,
+              ...(typeof m.subMissionId === 'string'
+                ? { subMissionId: m.subMissionId }
+                : {}),
             }))
+        : [],
+      addresses: Array.isArray(o.addresses)
+        ? o.addresses
+            .filter(
+              (a: any) =>
+                a && typeof a.id === 'string' && typeof a.name === 'string'
+            )
+            .map((a: any) => ({ id: a.id, name: a.name }))
         : [],
     };
   } catch {
@@ -195,6 +210,7 @@ function completeMissions(
   let electricity = stored.electricity;
   let artifacts = stored.artifacts;
   let xp = stored.xp;
+  const addresses = [...stored.addresses];
   let completed = 0;
 
   for (const m of stored.missions) {
@@ -212,6 +228,13 @@ function completeMissions(
           MAX_ARTIFACTS
         );
         xp = Math.max(0, xp + def.gain.xp);
+
+        // Recherche : débloque la PROCHAINE adresse du pool non encore possédée.
+        const sub = def.subMissions.find((s) => s.id === m.subMissionId);
+        const next = sub?.unlocksAddresses?.find(
+          (a) => !addresses.some((owned) => owned.id === a.id)
+        );
+        if (next) addresses.push({ id: next.id, name: next.name });
       }
       completed++;
     } else {
@@ -221,7 +244,14 @@ function completeMissions(
 
   if (completed === 0) return { stored, completed: 0 };
   return {
-    stored: { ...stored, electricity, artifacts, xp, missions: stillRunning },
+    stored: {
+      ...stored,
+      electricity,
+      artifacts,
+      xp,
+      missions: stillRunning,
+      addresses,
+    },
     completed,
   };
 }
@@ -266,8 +296,10 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
         durationSec: def
           ? def.durationSec
           : Math.max(0, Math.round((m.endsAt - m.startedAt) / 1000)),
+        ...(m.subMissionId ? { subMissionId: m.subMissionId } : {}),
       };
     }),
+    addresses: stored.addresses,
   };
 }
 
@@ -339,7 +371,8 @@ export type ActionResult =
 export async function startAction(
   env: Env,
   uid: string,
-  actionId: string
+  actionId: string,
+  subMissionId?: string
 ): Promise<ActionResult> {
   const def = ACTIONS_BY_ID[actionId];
   if (!def) return { ok: false, reason: 'unknown_action' };
@@ -373,7 +406,12 @@ export async function startAction(
     artifacts: stored.artifacts - def.cost.artifacts,
     missions: [
       ...stored.missions,
-      { actionId, startedAt: now, endsAt: now + def.durationSec * 1000 },
+      {
+        actionId,
+        startedAt: now,
+        endsAt: now + def.durationSec * 1000,
+        ...(subMissionId ? { subMissionId } : {}),
+      },
     ],
   };
   await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));

@@ -135,7 +135,16 @@ export default {
       const actionId = decodeURIComponent(
         url.pathname.slice('/action/'.length)
       );
-      const result = await startAction(env, uid, actionId);
+      let subMissionId: string | undefined;
+      try {
+        const body = (await request.json()) as { subMissionId?: unknown };
+        if (body && typeof body.subMissionId === 'string') {
+          subMissionId = body.subMissionId;
+        }
+      } catch {
+        // Corps vide ou invalide : pas de sous-mission précisée.
+      }
+      const result = await startAction(env, uid, actionId, subMissionId);
       if (!result.ok && result.reason === 'unknown_action') {
         return json({ error: 'unknown_action' }, 404, cors);
       }
