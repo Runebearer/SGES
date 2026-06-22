@@ -31,8 +31,13 @@ const SECTION_IDS: readonly SectionId[] = [
   'rewards',
   'research',
 ];
-// Clé localStorage : mémorise l'onglet courant pour le restaurer au refresh.
-const SECTION_STORAGE_KEY = 'sges:dashboard:section';
+// Onglet déduit du paramètre d'URL `?tab=...` (défaut : dashboard).
+function sectionFromQuery(tab: string | string[] | undefined): SectionId {
+  const value = Array.isArray(tab) ? tab[0] : tab;
+  return value && (SECTION_IDS as readonly string[]).includes(value)
+    ? (value as SectionId)
+    : 'dashboard';
+}
 
 // Glyphes SVG du menu (trait fin, style HUD).
 const ICONS: Record<SectionId, JSX.Element> = {
@@ -549,16 +554,8 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [player]);
 
-  // Restaure le dernier onglet visité après un rafraîchissement de page.
-  // Effet (et non valeur initiale) pour éviter tout décalage d'hydratation SSR.
-  useEffect(() => {
-    const saved = localStorage.getItem(SECTION_STORAGE_KEY);
-    if (saved && (SECTION_IDS as readonly string[]).includes(saved)) {
-      setActive(saved as SectionId);
-    }
-  }, []);
-
-  // Sélectionne un onglet ET le mémorise (restauré au prochain chargement).
+  // Sélectionne un onglet via l'URL (?tab=…). L'onglet par défaut (dashboard)
+  // garde une URL propre. `active` est dérivé de l'URL → conservé au refresh.
   const selectSection = (id: SectionId) => {
     const query = { ...router.query };
     if (id === 'dashboard') delete query.tab;
