@@ -109,6 +109,7 @@
         "title": "Rewards",
         "subtitle": "// Unlocked honors and rewards",
         "empty": "No rewards unlocked yet.",
+        "locked": "Locked trophy",
         "locked_hint": "Complete your first archaeological research to unlock your first reward.",
         "coverstone": {
           "title": "Coverstone Plan",

@@ -109,6 +109,7 @@
         "title": "Récompenses",
         "subtitle": "// Distinctions et récompenses débloquées",
         "empty": "Aucune récompense débloquée pour le moment.",
+        "locked": "Trophée verrouillé",
         "locked_hint": "Menez à bien votre première recherche archéologique pour débloquer votre première récompense.",
         "coverstone": {
           "title": "Plan du Couvercle",

@@ -148,6 +148,40 @@ const LIGHTNING = (
   </svg>
 );
 
+// Trophée : symbole d'une récompense débloquée.
+const TROPHY = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" />
+    <path d="M7 6H4v1a3 3 0 0 0 3 3" />
+    <path d="M17 6h3v1a3 3 0 0 1-3 3" />
+    <path d="M12 13v3" />
+    <path d="M8.5 20h7l-1-3h-5z" />
+  </svg>
+);
+
+// Cadenas : récompense encore verrouillée.
+const LOCK = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="5" y="11" width="14" height="9" rx="1.5" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 // Petite fenêtre HUD du nombre d'artefacts possédés (toujours visible).
 function ArtifactWindow() {
   const { t } = useTranslation('common');
@@ -491,79 +525,113 @@ function ResearchView({ onBack }: { onBack: () => void }) {
   );
 }
 
-// Vue « Récompenses ». La première récompense — le plan du couvercle (coverstone)
-// avec le cartouche de coordonnées — se débloque dès que le joueur a mené à bien
-// sa première recherche archéologique. Cette recherche est la SEULE action qui
-// débloque une adresse : posséder au moins une adresse ⟺ recherche effectuée.
+// Définition d'un trophée de la galerie des récompenses. `unlocked(player)`
+// décide de sa disponibilité à partir de l'état serveur-autoritaire. La clé
+// `i18nKey` pointe vers `dashboard.sections.rewards.<i18nKey>.{title,desc,alt}`.
+interface Trophy {
+  id: string;
+  i18nKey: string;
+  image: string;
+  unlocked: (player: ReturnType<typeof useAuth>['player']) => boolean;
+}
+
+// Catalogue des trophées. Pour en ajouter un : déposer l'image dans
+// `public/rewards/`, ajouter les libellés i18n et une entrée ici.
+const TROPHIES: Trophy[] = [
+  {
+    id: 'coverstone',
+    i18nKey: 'coverstone',
+    image: '/rewards/coverstone.jpg',
+    // Le plan du couvercle se débloque après la 1re recherche archéologique :
+    // c'est la SEULE action qui débloque une adresse, d'où ce test.
+    unlocked: (player) => (player?.addresses?.length ?? 0) > 0,
+  },
+];
+
+// Vue « Récompenses » : galerie de trophées présentés comme les cartes de
+// missions (même style holographique). Un trophée débloqué s'ouvre au clic et
+// affiche son image en plein écran ; un trophée verrouillé reste grisé.
 function RewardsView() {
   const { t } = useTranslation('common');
   const { player } = useAuth();
-  const [zoomed, setZoomed] = useState(false);
-  const unlocked = (player?.addresses?.length ?? 0) > 0;
+  const [openedId, setOpenedId] = useState<string | null>(null);
+
+  const trophies = TROPHIES.map((tr) => ({ ...tr, isUnlocked: tr.unlocked(player) }));
+  const opened = trophies.find((tr) => tr.id === openedId && tr.isUnlocked) ?? null;
 
   // Fermeture de la visionneuse plein écran à la touche Échap.
   useEffect(() => {
-    if (!zoomed) return;
+    if (!opened) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setZoomed(false);
+      if (e.key === 'Escape') setOpenedId(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [zoomed]);
-
-  if (!unlocked) {
-    return (
-      <div className="panel">
-        <p>{t('dashboard.sections.rewards.empty')}</p>
-        <p className="rewards-hint">
-          {t('dashboard.sections.rewards.locked_hint')}
-        </p>
-      </div>
-    );
-  }
-
-  const alt = t('dashboard.sections.rewards.coverstone.alt');
+  }, [opened]);
 
   return (
     <>
-      <div className="rewards-grid">
-        <figure className="reward-card">
-          <button
-            type="button"
-            className="reward-thumb"
-            onClick={() => setZoomed(true)}
-            aria-label={t('dashboard.sections.rewards.coverstone.view')}
-          >
-            <img src="/rewards/coverstone.jpg" alt={alt} loading="lazy" />
-          </button>
-          <figcaption className="reward-caption">
-            <span className="reward-title">
-              {t('dashboard.sections.rewards.coverstone.title')}
-            </span>
-            <span className="reward-desc">
-              {t('dashboard.sections.rewards.coverstone.desc')}
-            </span>
-          </figcaption>
-        </figure>
+      <div className="actions-list rewards-gallery">
+        {trophies.map((tr) => {
+          const title = tr.isUnlocked
+            ? t(`dashboard.sections.rewards.${tr.i18nKey}.title`)
+            : t('dashboard.sections.rewards.locked');
+          const desc = tr.isUnlocked
+            ? t(`dashboard.sections.rewards.${tr.i18nKey}.desc`)
+            : t('dashboard.sections.rewards.locked_hint');
+          const open = () => tr.isUnlocked && setOpenedId(tr.id);
+          return (
+            <div
+              key={tr.id}
+              className={`action-card reward-card${tr.isUnlocked ? '' : ' reward-locked'}`}
+            >
+              <div className="action-inner">
+                <div
+                  className="action-face action-front reward-front"
+                  role="button"
+                  tabIndex={tr.isUnlocked ? 0 : -1}
+                  aria-disabled={!tr.isUnlocked}
+                  aria-label={title}
+                  onClick={open}
+                  onKeyDown={(e) => {
+                    if (tr.isUnlocked && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      open();
+                    }
+                  }}
+                >
+                  <span className="reward-trophy-icon" aria-hidden="true">
+                    {tr.isUnlocked ? TROPHY : LOCK}
+                  </span>
+                  <h3 className="action-name">{title}</h3>
+                  <p className="action-desc">{desc}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {zoomed && (
+      {opened && (
         <div
           className="reward-lightbox"
           role="dialog"
           aria-modal="true"
-          aria-label={alt}
-          onClick={() => setZoomed(false)}
+          aria-label={t(`dashboard.sections.rewards.${opened.i18nKey}.alt`)}
+          onClick={() => setOpenedId(null)}
         >
           <button
             type="button"
             className="reward-lightbox-close"
-            onClick={() => setZoomed(false)}
+            onClick={() => setOpenedId(null)}
             aria-label={t('dashboard.research.back')}
           >
             ×
           </button>
-          <img src="/rewards/coverstone.jpg" alt={alt} />
+          <img
+            src={opened.image}
+            alt={t(`dashboard.sections.rewards.${opened.i18nKey}.alt`)}
+          />
         </div>
       )}
     </>
@@ -2009,97 +2077,60 @@ export default function Dashboard() {
           text-shadow: 0 0 8px rgba(77, 139, 255, 0.7);
         }
 
-        /* ---- RÉCOMPENSES ---- */
-        /* Indice affiché tant que la première récompense n'est pas débloquée. */
-        .dashboard-screen .rewards-hint {
-          margin: 14px 0 0;
-          font-family: monospace;
-          font-size: 0.8rem;
-          letter-spacing: 1px;
-          color: var(--electric-bright);
-          opacity: 0.7;
-        }
-
-        .dashboard-screen .rewards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 22px;
+        /* ---- RÉCOMPENSES (galerie de trophées) ---- */
+        /* Réutilise les cartes holographiques des missions
+           (.action-card / .action-face) ; mêmes grille et style. */
+        .dashboard-screen .rewards-gallery {
           max-width: 920px;
         }
 
-        .dashboard-screen .reward-card {
-          margin: 0;
-          display: flex;
-          flex-direction: column;
-          background: var(--panel-bg);
-          backdrop-filter: blur(6px);
-          border: 1px solid rgba(212, 175, 55, 0.4);
-          border-left: 4px solid #d4af37;
-          box-shadow: 0 0 18px rgba(212, 175, 55, 0.12),
-            inset 0 0 20px rgba(212, 175, 55, 0.05);
-          clip-path: polygon(
-            0 14px,
-            14px 0,
-            100% 0,
-            100% calc(100% - 14px),
-            calc(100% - 14px) 100%,
-            0 100%
-          );
-          transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-        .dashboard-screen .reward-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 0 28px rgba(212, 175, 55, 0.28);
+        /* Contenu de la carte trophée : icône, titre, description, centrés. */
+        .dashboard-screen .reward-front {
+          align-items: center;
+          text-align: center;
         }
 
-        /* Vignette cliquable : ouvre la visionneuse plein écran. */
-        .dashboard-screen .reward-thumb {
-          display: block;
+        .dashboard-screen .reward-trophy-icon {
+          position: relative;
+          z-index: 1;
+          width: 46px;
+          height: 46px;
+          margin: 6px auto 2px;
+          color: #d4af37;
+          filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.55));
+        }
+        .dashboard-screen .reward-trophy-icon svg {
           width: 100%;
-          padding: 0;
-          border: none;
-          border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-          background: #0b1020;
-          cursor: zoom-in;
-          line-height: 0;
-        }
-        .dashboard-screen .reward-thumb img {
-          display: block;
-          width: 100%;
-          height: auto;
-          filter: saturate(0.92);
-          transition: filter 0.25s ease;
-        }
-        .dashboard-screen .reward-thumb:hover img {
-          filter: saturate(1.05) brightness(1.05);
-        }
-        .dashboard-screen .reward-thumb:focus-visible {
-          outline: 2px solid #d4af37;
-          outline-offset: -2px;
+          height: 100%;
         }
 
-        .dashboard-screen .reward-caption {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          padding: 16px 18px;
+        /* Trophée débloqué : accent doré sur la carte (cliquable). */
+        .dashboard-screen .reward-card:not(.reward-locked) .action-face {
+          border-color: rgba(212, 175, 55, 0.5);
+          box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.12),
+            0 0 18px rgba(212, 175, 55, 0.2);
         }
-        .dashboard-screen .reward-title {
-          font-family: monospace;
-          font-size: 0.88rem;
-          font-weight: 700;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          color: #f4e4b8;
-          text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+        .dashboard-screen .reward-card:not(.reward-locked):hover .action-face {
+          border-color: rgba(244, 228, 184, 0.8);
+          box-shadow: inset 0 0 40px rgba(212, 175, 55, 0.2),
+            0 0 30px rgba(212, 175, 55, 0.4);
         }
-        .dashboard-screen .reward-desc {
-          font-family: monospace;
-          font-size: 0.76rem;
-          line-height: 1.5;
-          letter-spacing: 0.5px;
+
+        /* Trophée verrouillé : grisé, non cliquable, icône cadenas. */
+        .dashboard-screen .reward-locked,
+        .dashboard-screen .reward-locked .action-front {
+          cursor: not-allowed;
+        }
+        .dashboard-screen .reward-locked:hover {
+          transform: none;
+        }
+        .dashboard-screen .reward-locked .action-face {
+          opacity: 0.55;
+          filter: grayscale(0.6);
+        }
+        .dashboard-screen .reward-locked .reward-trophy-icon {
           color: var(--text-main);
-          opacity: 0.85;
+          filter: none;
         }
 
         /* ---- VISIONNEUSE PLEIN ÉCRAN ---- */
