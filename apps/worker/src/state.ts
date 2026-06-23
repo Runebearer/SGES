@@ -28,6 +28,17 @@ import {
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
 
+/**
+ * Abstraction du stockage de l'état joueur : découple la logique métier du
+ * backend. Aujourd'hui implémentée par le storage SQLite du Durable Object du
+ * joueur (fortement cohérent) ; le format reste le doc JSON historique du KV
+ * (`parse()` inchangé). `get()` renvoie null si le joueur n'a pas encore d'état.
+ */
+export interface Store {
+  get(): Promise<string | null>;
+  put(value: string): Promise<void>;
+}
+
 interface StoredEnergy {
   value: number;
   /** Jour de la dernière mise à jour d'énergie (YYYY-MM-DD, fuseau de recharge). */
@@ -55,7 +66,8 @@ interface StoredPlayer {
 const DEFAULT_TZ = 'Europe/Paris';
 const SECONDS_PER_DAY = 86400;
 
-function key(uid: string): string {
+/** Clé du doc joueur en KV. Conservée pour l'hydratation KV → DO (cf. PlayerDO). */
+export function key(uid: string): string {
   return `player:${uid}`;
 }
 
@@ -364,12 +376,11 @@ function completeMissions(
 // missions écoulées (gains appliqués). `dirty` = true si une mission a été
 // complétée → l'appelant DOIT persister (les gains sont irréversibles).
 async function loadReconciled(
-  env: Env,
-  uid: string,
+  store: Store,
   today: string,
   now: number
 ): Promise<{ stored: StoredPlayer; dirty: boolean }> {
-  const base = parse(await env.ENERGY_KV.get(key(uid))) ?? defaults(today);
+  const base = parse(await store.get()) ?? defaults(today);
   const refilled = applyDailyRefill(base, today);
   const { stored, completed } = completeMissions(refilled, now);
   return { stored, dirty: completed > 0 };
@@ -408,11 +419,11 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
 }
 
 /** Lit l'état complet du joueur (recharge d'énergie + complétion des missions). */
-export async function getState(env: Env, uid: string): Promise<PlayerState> {
+export async function getState(store: Store, env: Env): Promise<PlayerState> {
   const now = Date.now();
   const today = dayInTz(new Date(now), tz(env));
-  const { stored, dirty } = await loadReconciled(env, uid, today, now);
-  if (dirty) await env.ENERGY_KV.put(key(uid), JSON.stringify(stored));
+  const { stored, dirty } = await loadReconciled(store, today, now);
+  if (dirty) await store.put(JSON.stringify(stored));
   return toState(stored, env);
 }
 
@@ -422,13 +433,13 @@ export async function getState(env: Env, uid: string): Promise<PlayerState> {
  * persistées) afin que le journal soit toujours à jour.
  */
 export async function getHistory(
-  env: Env,
-  uid: string
+  store: Store,
+  env: Env
 ): Promise<HistoryEntry[]> {
   const now = Date.now();
   const today = dayInTz(new Date(now), tz(env));
-  const { stored, dirty } = await loadReconciled(env, uid, today, now);
-  if (dirty) await env.ENERGY_KV.put(key(uid), JSON.stringify(stored));
+  const { stored, dirty } = await loadReconciled(store, today, now);
+  if (dirty) await store.put(JSON.stringify(stored));
   return stored.history;
 }
 
@@ -439,19 +450,17 @@ export type SpendResult =
 /**
  * Dépense `amount` d'énergie. Échoue (sans débit) si le solde est insuffisant.
  *
- * NB : KV n'offre pas de compare-and-set atomique ; deux dépenses très
- * concurrentes pour le même uid peuvent se chevaucher. Acceptable pour une
- * jauge de jeu ; passer aux Durable Objects si une atomicité stricte devient
- * nécessaire.
+ * Atomicité : exécutée dans le Durable Object du joueur (un seul exemplaire,
+ * mono-thread), les read-modify-write sur le `store` ne se chevauchent jamais.
  */
 export async function spendEnergy(
+  store: Store,
   env: Env,
-  uid: string,
   amount: number
 ): Promise<SpendResult> {
   const now = Date.now();
   const today = dayInTz(new Date(now), tz(env));
-  const { stored } = await loadReconciled(env, uid, today, now);
+  const { stored } = await loadReconciled(store, today, now);
   if (amount > stored.energy.value) {
     return { ok: false, available: stored.energy.value };
   }
@@ -459,7 +468,7 @@ export async function spendEnergy(
     ...stored,
     energy: { value: stored.energy.value - amount, day: today },
   };
-  await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));
+  await store.put(JSON.stringify(updated));
   return { ok: true, state: toState(updated, env) };
 }
 
@@ -489,8 +498,8 @@ export type ActionResult =
  * `requiredAddressStatus` ne sont volontairement PAS encore vérifiés.
  */
 export async function startAction(
+  store: Store,
   env: Env,
-  uid: string,
   actionId: string,
   subMissionId?: string
 ): Promise<ActionResult> {
@@ -499,7 +508,7 @@ export async function startAction(
 
   const now = Date.now();
   const today = dayInTz(new Date(now), tz(env));
-  const { stored } = await loadReconciled(env, uid, today, now);
+  const { stored } = await loadReconciled(store, today, now);
 
   // Une seule instance par action à la fois.
   if (stored.missions.some((m) => m.actionId === actionId)) {
@@ -534,7 +543,7 @@ export async function startAction(
       },
     ],
   };
-  await env.ENERGY_KV.put(key(uid), JSON.stringify(updated));
+  await store.put(JSON.stringify(updated));
 
   return { ok: true, result: { state: toState(updated, env), actionId } };
 }

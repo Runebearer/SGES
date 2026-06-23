@@ -13,15 +13,26 @@
 
 import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
-import { getState, getHistory, spendEnergy, startAction } from './state';
 import { ACTIONS } from './actions';
+import { PlayerDO } from './player-do';
+
+// Le DO doit être exporté par le module d'entrée pour que wrangler l'enregistre.
+export { PlayerDO };
 
 export interface Env {
   ENERGY_KV: KVNamespace;
+  /** Guichet joueur atomique (un exemplaire par uid) : source de vérité de l'état. */
+  PLAYER_DO: DurableObjectNamespace<PlayerDO>;
   FIREBASE_PROJECT_ID: string;
   RESET_TIMEZONE?: string;
   /** Origine(s) CORS autorisée(s), séparées par des virgules. `*` = toutes. */
   ALLOWED_ORIGIN?: string;
+}
+
+// Résout le guichet (Durable Object) du joueur. Toutes les opérations d'état
+// passent par lui : un seul exemplaire par uid, mono-thread ⇒ atomicité.
+function playerStub(env: Env, uid: string) {
+  return env.PLAYER_DO.get(env.PLAYER_DO.idFromName(uid));
 }
 
 // Toute origine localhost (n'importe quel port) est acceptée en dev, en plus
@@ -89,17 +100,17 @@ export default {
 
     // --- GET /state ----------------------------------------------------------
     if (request.method === 'GET' && url.pathname === '/state') {
-      return json(await getState(env, uid), 200, cors);
+      return json(await playerStub(env, uid).getState(uid), 200, cors);
     }
 
     // --- GET /energy (alias de compatibilité : énergie seule) ----------------
     if (request.method === 'GET' && url.pathname === '/energy') {
-      return json((await getState(env, uid)).energy, 200, cors);
+      return json((await playerStub(env, uid).getState(uid)).energy, 200, cors);
     }
 
     // --- GET /history (journal des actions terminées) ------------------------
     if (request.method === 'GET' && url.pathname === '/history') {
-      return json(await getHistory(env, uid), 200, cors);
+      return json(await playerStub(env, uid).getHistory(uid), 200, cors);
     }
 
     // --- POST /energy/spend --------------------------------------------------
@@ -116,7 +127,7 @@ export default {
         return json({ error: 'invalid_amount' }, 400, cors);
       }
 
-      const result = await spendEnergy(env, uid, amount);
+      const result = await playerStub(env, uid).spendEnergy(uid, amount);
       if (!result.ok) {
         return json(
           {
@@ -150,7 +161,11 @@ export default {
       } catch {
         // Corps vide ou invalide : pas de sous-mission précisée.
       }
-      const result = await startAction(env, uid, actionId, subMissionId);
+      const result = await playerStub(env, uid).startAction(
+        uid,
+        actionId,
+        subMissionId
+      );
       if (!result.ok && result.reason === 'unknown_action') {
         return json({ error: 'unknown_action' }, 404, cors);
       }

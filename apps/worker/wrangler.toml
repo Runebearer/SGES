@@ -27,3 +27,16 @@ ALLOWED_ORIGIN = "https://sges-site.vercel.app,http://localhost:3000"
 binding = "ENERGY_KV"
 id = "39eaffdd4c48432a9933133b0ff174dd"
 # preview_id = "REMPLACER_PAR_PREVIEW_ID_KV"
+
+# --- Durable Objects (état joueur atomique, mono-thread par uid) --------------
+# La classe PlayerDO (exportée par src/index.ts) détient désormais l'état
+# autoritaire dans son storage SQLite. Le KV ci-dessus ne sert plus qu'à
+# l'hydratation initiale (player:{uid}) puis, plus tard, d'annuaire (roster).
+[[durable_objects.bindings]]
+name = "PLAYER_DO"
+class_name = "PlayerDO"
+
+# Storage SQLite (éligible au plan Workers gratuit).
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PlayerDO"]
