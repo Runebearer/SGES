@@ -9,13 +9,20 @@
 // DO fait foi (ne plus lire KV comme vérité).
 
 import { DurableObject } from 'cloudflare:workers';
-import type { PlayerState, HistoryEntry } from '@sges/api-contract';
+import type {
+  PlayerState,
+  HistoryEntry,
+  AdminPlayerPatch,
+} from '@sges/api-contract';
 import {
   getState,
   getHistory,
   spendEnergy,
   startAction,
+  adminUpdate,
+  adminReset,
   key,
+  rosterKey,
   type Store,
   type SpendResult,
   type ActionResult,
@@ -39,6 +46,8 @@ export class PlayerDO extends DurableObject<Env> {
     const fromKv = await this.env.ENERGY_KV.get(key(uid));
     if (fromKv) await this.ctx.storage.put(STORAGE_KEY, fromKv);
     await this.ctx.storage.put(UID_KEY, uid);
+    // Inscrit le joueur à l'annuaire (permet de tous les lister côté back-office).
+    await this.env.ENERGY_KV.put(rosterKey(uid), '1');
   }
 
   async getState(uid: string): Promise<PlayerState> {
@@ -63,5 +72,19 @@ export class PlayerDO extends DurableObject<Env> {
   ): Promise<ActionResult> {
     await this.hydrate(uid);
     return startAction(this.store, this.env, actionId, subMissionId);
+  }
+
+  // --- Back-office : édition d'un joueur (autorisation vérifiée dans index.ts) -
+  async adminUpdate(
+    uid: string,
+    patch: AdminPlayerPatch
+  ): Promise<PlayerState> {
+    await this.hydrate(uid);
+    return adminUpdate(this.store, this.env, patch);
+  }
+
+  async adminReset(uid: string): Promise<PlayerState> {
+    await this.hydrate(uid);
+    return adminReset(this.store, this.env);
   }
 }

@@ -258,3 +258,20 @@ export interface ActionError {
   cost?: ActionCost;
   have?: { energy: number; electricity: number; artifacts: number };
 }
+
+// === Back-office (admin) =====================================================
+
+/**
+ * Patch d'édition d'un joueur depuis le back-office (valeurs ABSOLUES, pas des
+ * deltas). Tout champ omis est laissé inchangé. Appliqué côté Worker (route
+ * `POST /admin/player/{uid}`, réservée à l'allowlist) ; les valeurs sont bornées
+ * comme l'état normal.
+ */
+export interface AdminPlayerPatch {
+  energy?: number;
+  electricity?: number;
+  artifacts?: number;
+  xp?: number;
+  /** Si true, réinitialise le joueur à l'état par défaut (ignore les autres champs). */
+  reset?: boolean;
+}

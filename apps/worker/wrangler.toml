@@ -16,6 +16,10 @@ RESET_TIMEZONE = "Europe/Paris"
 # Prod (Vercel) + dev local.
 ALLOWED_ORIGIN = "https://sges-site.vercel.app,http://localhost:3000"
 
+# Allowlist du back-office : uid Firebase autorisés aux routes /admin/*,
+# séparés par des virgules. Vérifié côté serveur (cf. src/admin.ts).
+ADMIN_UIDS = "L5tOGxcIImWsm5haAwsXe37YUtF3"
+
 # --- Stockage KV (serveur-autoritaire) ---------------------------------------
 # Créer le namespace une fois :
 #   wrangler kv namespace create ENERGY_KV

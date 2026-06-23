@@ -24,6 +24,7 @@ import {
   type PerformActionResult,
   type Address,
   type HistoryEntry,
+  type AdminPlayerPatch,
 } from '@sges/api-contract';
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
@@ -69,6 +70,11 @@ const SECONDS_PER_DAY = 86400;
 /** Clé du doc joueur en KV. Conservée pour l'hydratation KV → DO (cf. PlayerDO). */
 export function key(uid: string): string {
   return `player:${uid}`;
+}
+
+/** Clé d'annuaire : marque l'existence d'un joueur, pour énumérer tous les uid. */
+export function rosterKey(uid: string): string {
+  return `roster:${uid}`;
 }
 
 function tz(env: Env): string {
@@ -546,4 +552,50 @@ export async function startAction(
   await store.put(JSON.stringify(updated));
 
   return { ok: true, result: { state: toState(updated, env), actionId } };
+}
+
+// === Back-office (admin) =====================================================
+// Édition serveur-autoritaire d'un joueur depuis le back-office. L'autorisation
+// (allowlist) est vérifiée EN AMONT dans index.ts ; ici on ne fait qu'appliquer.
+
+/**
+ * Écrase les ressources fournies (valeurs absolues, bornées) ; les champs omis
+ * sont laissés tels quels. Recharge d'énergie / complétion de missions appliquées
+ * d'abord (loadReconciled), comme toute autre lecture.
+ */
+export async function adminUpdate(
+  store: Store,
+  env: Env,
+  patch: AdminPlayerPatch
+): Promise<PlayerState> {
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const { stored } = await loadReconciled(store, today, now);
+  const updated: StoredPlayer = {
+    ...stored,
+    energy:
+      patch.energy != null
+        ? { value: clamp(patch.energy, 0, MAX_ENERGY), day: today }
+        : stored.energy,
+    electricity:
+      patch.electricity != null
+        ? clamp(patch.electricity, 0, MAX_ELECTRICITY)
+        : stored.electricity,
+    artifacts:
+      patch.artifacts != null
+        ? clamp(Math.floor(patch.artifacts), 0, MAX_ARTIFACTS)
+        : stored.artifacts,
+    xp: patch.xp != null ? Math.max(0, patch.xp) : stored.xp,
+  };
+  await store.put(JSON.stringify(updated));
+  return toState(updated, env);
+}
+
+/** Réinitialise le joueur à l'état par défaut (jauges pleines d'énergie, reste à zéro). */
+export async function adminReset(store: Store, env: Env): Promise<PlayerState> {
+  const now = Date.now();
+  const today = dayInTz(new Date(now), tz(env));
+  const fresh = defaults(today);
+  await store.put(JSON.stringify(fresh));
+  return toState(fresh, env);
 }

@@ -11,9 +11,14 @@
 // Auth : en-tête `Authorization: Bearer <ID token Firebase>`, vérifié en
 // WebCrypto (cf. auth.ts). L'uid Firebase sert de clé KV.
 
-import { DEFAULT_ACTION_COST, type SpendEnergyRequest } from '@sges/api-contract';
+import {
+  DEFAULT_ACTION_COST,
+  type SpendEnergyRequest,
+  type AdminPlayerPatch,
+} from '@sges/api-contract';
 import { verifyFirebaseToken } from './auth';
 import { ACTIONS } from './actions';
+import { isAdmin, listPlayerUids } from './admin';
 import { PlayerDO } from './player-do';
 
 // Le DO doit être exporté par le module d'entrée pour que wrangler l'enregistre.
@@ -27,6 +32,8 @@ export interface Env {
   RESET_TIMEZONE?: string;
   /** Origine(s) CORS autorisée(s), séparées par des virgules. `*` = toutes. */
   ALLOWED_ORIGIN?: string;
+  /** Allowlist back-office : uid Firebase autorisés aux routes /admin/*, séparés par des virgules. */
+  ADMIN_UIDS?: string;
 }
 
 // Résout le guichet (Durable Object) du joueur. Toutes les opérations d'état
@@ -186,6 +193,50 @@ export default {
       if (result.ok) {
         return json(result.result, 200, cors);
       }
+    }
+
+    // --- Admin (back-office) : réservé à l'allowlist, vérifié SERVEUR-side ----
+    if (url.pathname.startsWith('/admin/')) {
+      if (!isAdmin(uid, env)) return json({ error: 'forbidden' }, 403, cors);
+
+      // GET /admin/players : tous les uid joueurs connus.
+      if (request.method === 'GET' && url.pathname === '/admin/players') {
+        return json(await listPlayerUids(env), 200, cors);
+      }
+
+      // /admin/player/{uid} : consultation (GET) / édition (POST).
+      if (url.pathname.startsWith('/admin/player/')) {
+        const targetUid = decodeURIComponent(
+          url.pathname.slice('/admin/player/'.length)
+        );
+        if (!targetUid) return json({ error: 'missing_uid' }, 400, cors);
+        const target = playerStub(env, targetUid);
+
+        if (request.method === 'GET') {
+          return json(await target.getState(targetUid), 200, cors);
+        }
+        if (request.method === 'POST') {
+          let body: Record<string, unknown> = {};
+          try {
+            body = (await request.json()) as Record<string, unknown>;
+          } catch {
+            // Corps vide / JSON invalide : patch vide (no-op).
+          }
+          if (body.reset === true) {
+            return json(await target.adminReset(targetUid), 200, cors);
+          }
+          const num = (v: unknown): number | undefined =>
+            typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+          const patch: AdminPlayerPatch = {};
+          for (const f of ['energy', 'electricity', 'artifacts', 'xp'] as const) {
+            const v = num(body[f]);
+            if (v != null) patch[f] = v;
+          }
+          return json(await target.adminUpdate(targetUid, patch), 200, cors);
+        }
+      }
+
+      return json({ error: 'not_found' }, 404, cors);
     }
 
     return json({ error: 'not_found' }, 404, cors);

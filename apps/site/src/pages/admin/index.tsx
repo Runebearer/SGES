@@ -1,11 +1,12 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
 import { useAuth } from '../../context/AuthContext';
 import { isAdmin } from '../../lib/admin';
+import { fetchPlayers } from '../../lib/adminClient';
 import nextI18NextConfig from '../../../next-i18next.config.js';
 
 export const getStaticProps: GetStaticProps = async ({ locale }) => ({
@@ -14,27 +15,38 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
   },
 });
 
-// Back-office SGES — page réservée à l'allowlist admin (cf. lib/admin.ts).
-// Périmètre actuel : lecture seule de l'état du compte connecté. Les outils
-// d'édition (recherche par uid, patch/grant/reset) viendront via les routes
-// admin du Worker.
+// Back-office SGES — liste de tous les joueurs (réservée à l'allowlist admin,
+// vérifiée côté serveur par le Worker). Cliquer un joueur ouvre sa fiche éditable.
 export default function AdminHome() {
   const router = useRouter();
-  const { user, player, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const admin = isAdmin(user);
+  const [players, setPlayers] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Garde-fou : non connecté → login ; connecté mais non-admin → dashboard.
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace('/login');
-    } else if (!admin) {
-      router.replace('/dashboard');
-    }
-  }, [loading, user, admin, router]);
+    if (!user) router.replace('/login');
+    else if (!admin) router.replace('/dashboard');
+    // router hors deps (stable) : évite de relancer la redirection à chaque
+    // navigation (boucle d'« Abort fetching component »).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, admin]);
 
-  // Tant que l'accès n'est pas confirmé, on n'affiche rien (évite le flash de
-  // contenu réservé avant la redirection).
+  // Charge la liste des joueurs (uniquement si admin confirmé).
+  useEffect(() => {
+    if (!user || !admin) return;
+    let alive = true;
+    setError(null);
+    fetchPlayers(() => user.getIdToken())
+      .then((list) => alive && setPlayers(list))
+      .catch((e) => alive && setError(String(e?.message ?? e)));
+    return () => {
+      alive = false;
+    };
+  }, [user, admin]);
+
   if (loading || !user || !admin) {
     return (
       <div className="admin-gate">
@@ -62,64 +74,40 @@ export default function AdminHome() {
       <main className="admin">
         <header className="admin-head">
           <h1>Back-office SGES</h1>
-          <div className="admin-actions">
-            <Link href="/dashboard" className="admin-link">
-              ← Dashboard
-            </Link>
-            <button type="button" onClick={() => signOut()}>
-              Déconnexion
-            </button>
-          </div>
+          <button type="button" onClick={() => signOut()}>
+            Déconnexion
+          </button>
         </header>
 
         <section className="admin-card">
-          <h2>Compte connecté</h2>
-          <dl>
-            <dt>uid</dt>
-            <dd className="mono">{user.uid}</dd>
-            <dt>email</dt>
-            <dd>{user.email ?? '—'}</dd>
-          </dl>
-        </section>
-
-        <section className="admin-card">
-          <h2>État joueur (lecture seule)</h2>
-          {player ? (
-            <dl>
-              <dt>Énergie</dt>
-              <dd>
-                {player.energy.value} / {player.energy.max}
-              </dd>
-              <dt>Électricité</dt>
-              <dd>{player.electricity}</dd>
-              <dt>Artefacts</dt>
-              <dd>{player.artifacts}</dd>
-              <dt>XP</dt>
-              <dd>{player.xp}</dd>
-              <dt>Niveau</dt>
-              <dd>{player.level}</dd>
-              <dt>Missions en cours</dt>
-              <dd>{player.missions.length}</dd>
-              <dt>Adresses</dt>
-              <dd>{player.addresses.length}</dd>
-            </dl>
+          <h2>
+            Joueurs{players ? ` (${players.length})` : ''}
+          </h2>
+          {error ? (
+            <p className="err">Erreur de chargement : {error}</p>
+          ) : players == null ? (
+            <p className="muted">Chargement…</p>
+          ) : players.length === 0 ? (
+            <p className="muted">Aucun joueur enregistré.</p>
           ) : (
-            <p className="muted">
-              État indisponible (Worker injoignable ou non chargé).
-            </p>
+            <ul className="players">
+              {players.map((uid) => (
+                <li key={uid}>
+                  <Link href={`/admin/${encodeURIComponent(uid)}`} className="player">
+                    <span className="mono">{uid}</span>
+                    {uid === user.uid && <span className="badge">vous</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
-
-        <p className="muted note">
-          Prochaine étape : recherche d’un joueur par uid et édition (énergie,
-          ressources, récompenses, reset) via les routes admin du Worker.
-        </p>
       </main>
 
       <style jsx>{`
         .admin {
           min-height: 100vh;
-          max-width: 720px;
+          max-width: 760px;
           margin: 0 auto;
           padding: 2rem 1.25rem 4rem;
           background: #0a0e14;
@@ -140,16 +128,7 @@ export default function AdminHome() {
           margin: 0;
           color: #5fd0ff;
         }
-        .admin-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .admin-link {
-          color: #9fb3c8;
-          text-decoration: none;
-        }
-        .admin-actions button {
+        .admin-head button {
           background: transparent;
           border: 1px solid #2a3a4d;
           color: #cfe0f0;
@@ -158,14 +137,13 @@ export default function AdminHome() {
           cursor: pointer;
           font: inherit;
         }
-        .admin-actions button:hover {
+        .admin-head button:hover {
           border-color: #5fd0ff;
         }
         .admin-card {
           border: 1px solid #1d2735;
           border-radius: 6px;
           padding: 1rem 1.25rem;
-          margin-bottom: 1.25rem;
           background: #0d131c;
         }
         .admin-card h2 {
@@ -175,30 +153,48 @@ export default function AdminHome() {
           color: #6f8aa3;
           margin: 0 0 0.75rem;
         }
-        dl {
-          display: grid;
-          grid-template-columns: max-content 1fr;
-          gap: 0.35rem 1rem;
+        .players {
+          list-style: none;
           margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
         }
-        dt {
-          color: #6f8aa3;
-        }
-        dd {
-          margin: 0;
+        .player {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          padding: 0.55rem 0.75rem;
+          border: 1px solid #1d2735;
+          border-radius: 4px;
           color: #e6f1fb;
+          text-decoration: none;
+        }
+        .player:hover {
+          border-color: #5fd0ff;
+          background: #0f1722;
         }
         .mono {
           font-size: 0.85rem;
           word-break: break-all;
         }
+        .badge {
+          flex: none;
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #0a0e14;
+          background: #5fd0ff;
+          border-radius: 3px;
+          padding: 0.1rem 0.4rem;
+        }
         .muted {
           color: #6f8aa3;
         }
-        .note {
-          font-size: 0.85rem;
-          border-top: 1px dashed #1d2735;
-          padding-top: 1rem;
+        .err {
+          color: #ff8c8c;
         }
       `}</style>
     </>
