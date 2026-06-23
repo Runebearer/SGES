@@ -541,7 +541,7 @@ const TROPHIES: Trophy[] = [
   {
     id: 'coverstone',
     i18nKey: 'coverstone',
-    image: '/rewards/coverstone.jpg',
+    image: '/rewards/giza-coverstone.jpg',
     // Le plan du couvercle se débloque après la 1re recherche archéologique :
     // c'est la SEULE action qui débloque une adresse, d'où ce test.
     unlocked: (player) => (player?.addresses?.length ?? 0) > 0,
