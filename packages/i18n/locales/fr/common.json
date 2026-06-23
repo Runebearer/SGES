@@ -111,6 +111,7 @@
         "empty": "Aucune récompense débloquée pour le moment.",
         "locked": "Trophée verrouillé",
         "locked_hint": "Menez à bien votre première recherche archéologique pour débloquer votre première récompense.",
+        "grade_level": "Niveau {{level}}",
         "coverstone": {
           "title": "Couvercle de pierre de Gizeh",
           "desc": "Relevé d'archives du couvercle de pierre de la Porte des étoiles (1928) : première cartouche de coordonnées et symboles de constellations traduits.",

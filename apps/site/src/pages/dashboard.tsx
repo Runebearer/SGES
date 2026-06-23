@@ -7,6 +7,7 @@ import type { GetStaticProps } from 'next';
 import type { ActionDef, ActionSection, SubMission } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
+import { GRADES, isGradeUnlocked, gradeLevel } from '../lib/grades';
 import nextI18NextConfig from '../../next-i18next.config.js';
 
 export const getStaticProps: GetStaticProps = async ({ locale }) => ({
@@ -554,23 +555,80 @@ const TROPHIES: Trophy[] = [
 function RewardsView() {
   const { t } = useTranslation('common');
   const { player } = useAuth();
-  const [openedId, setOpenedId] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(
+    null
+  );
 
-  const trophies = TROPHIES.map((tr) => ({ ...tr, isUnlocked: tr.unlocked(player) }));
-  const opened = trophies.find((tr) => tr.id === openedId && tr.isUnlocked) ?? null;
+  const trophies = TROPHIES.map((tr) => ({
+    ...tr,
+    isUnlocked: tr.unlocked(player),
+  }));
+  const grades = GRADES.map((g) => ({
+    ...g,
+    isUnlocked: isGradeUnlocked(g, player),
+    level: gradeLevel(g),
+  }));
 
   // Fermeture de la visionneuse plein écran à la touche Échap.
   useEffect(() => {
-    if (!opened) return;
+    if (!lightbox) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenedId(null);
+      if (e.key === 'Escape') setLightbox(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [opened]);
+  }, [lightbox]);
 
   return (
     <>
+      {/* Galerie des grades : débloqués automatiquement selon le niveau. */}
+      <div className="actions-list rewards-gallery grades-gallery">
+        {grades.map((g) => {
+          const open = () =>
+            g.isUnlocked && setLightbox({ src: g.image, alt: g.name });
+          return (
+            <div
+              key={g.id}
+              className={`action-card reward-card grade-card${g.isUnlocked ? '' : ' reward-locked'}`}
+            >
+              <div className="action-inner">
+                <div
+                  className="action-face action-front reward-front"
+                  role="button"
+                  tabIndex={g.isUnlocked ? 0 : -1}
+                  aria-disabled={!g.isUnlocked}
+                  aria-label={g.name}
+                  onClick={open}
+                  onKeyDown={(e) => {
+                    if (g.isUnlocked && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      open();
+                    }
+                  }}
+                >
+                  <span className="reward-media">
+                    {g.isUnlocked ? (
+                      <img className="grade-thumb" src={g.image} alt="" />
+                    ) : (
+                      <span className="reward-trophy-icon" aria-hidden="true">
+                        {LOCK}
+                      </span>
+                    )}
+                  </span>
+                  <h3 className="action-name">{g.name}</h3>
+                  <p className="action-desc">
+                    {t('dashboard.sections.rewards.grade_level', {
+                      level: g.level,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Trophées spéciaux (récompenses ponctuelles). */}
       <div className="actions-list rewards-gallery">
         {trophies.map((tr) => {
           const title = tr.isUnlocked
@@ -579,7 +637,12 @@ function RewardsView() {
           const desc = tr.isUnlocked
             ? t(`dashboard.sections.rewards.${tr.i18nKey}.desc`)
             : t('dashboard.sections.rewards.locked_hint');
-          const open = () => tr.isUnlocked && setOpenedId(tr.id);
+          const open = () =>
+            tr.isUnlocked &&
+            setLightbox({
+              src: tr.image,
+              alt: t(`dashboard.sections.rewards.${tr.i18nKey}.alt`),
+            });
           return (
             <div
               key={tr.id}
@@ -612,26 +675,23 @@ function RewardsView() {
         })}
       </div>
 
-      {opened && (
+      {lightbox && (
         <div
           className="reward-lightbox"
           role="dialog"
           aria-modal="true"
-          aria-label={t(`dashboard.sections.rewards.${opened.i18nKey}.alt`)}
-          onClick={() => setOpenedId(null)}
+          aria-label={lightbox.alt}
+          onClick={() => setLightbox(null)}
         >
           <button
             type="button"
             className="reward-lightbox-close"
-            onClick={() => setOpenedId(null)}
+            onClick={() => setLightbox(null)}
             aria-label={t('dashboard.research.back')}
           >
             ×
           </button>
-          <img
-            src={opened.image}
-            alt={t(`dashboard.sections.rewards.${opened.i18nKey}.alt`)}
-          />
+          <img src={lightbox.src} alt={lightbox.alt} />
         </div>
       )}
     </>
@@ -2082,6 +2142,48 @@ export default function Dashboard() {
            (.action-card / .action-face) ; mêmes grille et style. */
         .dashboard-screen .rewards-gallery {
           max-width: 920px;
+        }
+
+        /* Vignette d'un grade débloqué (illustration du grade). */
+        .dashboard-screen .grade-thumb {
+          width: 64px;
+          height: 64px;
+          object-fit: contain;
+          margin: 4px auto 2px;
+          filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.35));
+        }
+
+        /* Galerie de grades : toutes les cartes à la MÊME taille. */
+        .dashboard-screen .grades-gallery {
+          align-items: stretch; /* cartes étirées à la hauteur de la ligne */
+        }
+        .dashboard-screen .grades-gallery .action-card,
+        .dashboard-screen .grades-gallery .action-inner,
+        .dashboard-screen .grades-gallery .action-face {
+          height: 100%;
+        }
+        .dashboard-screen .grades-gallery .reward-front {
+          justify-content: flex-start;
+        }
+        /* Emplacement média à hauteur fixe (image OU cadenas centré). */
+        .dashboard-screen .reward-media {
+          height: 72px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dashboard-screen .reward-media .reward-trophy-icon,
+        .dashboard-screen .reward-media .grade-thumb {
+          margin: 0;
+        }
+        /* Nom réservé sur 2 lignes : hauteur identique quelle que soit sa longueur. */
+        .dashboard-screen .grades-gallery .action-name {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          min-height: 2.6em;
+          margin: 0;
         }
 
         /* Contenu de la carte trophée : icône, titre, description, centrés. */
