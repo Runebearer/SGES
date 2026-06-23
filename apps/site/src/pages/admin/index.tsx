@@ -23,6 +23,7 @@ export default function AdminHome() {
   const admin = isAdmin(user);
   const [players, setPlayers] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   // Garde-fou : non connecté → login ; connecté mais non-admin → dashboard.
   useEffect(() => {
@@ -46,6 +47,12 @@ export default function AdminHome() {
       alive = false;
     };
   }, [user, admin]);
+
+  // Filtre la liste par sous-chaîne d'ID (insensible à la casse).
+  const q = query.trim().toLowerCase();
+  const filtered = (players ?? []).filter((uid) =>
+    uid.toLowerCase().includes(q)
+  );
 
   if (loading || !user || !admin) {
     return (
@@ -81,19 +88,38 @@ export default function AdminHome() {
 
         <section className="admin-card">
           <h2>
-            Joueurs{players ? ` (${players.length})` : ''}
+            Joueurs{players ? ` (${filtered.length}/${players.length})` : ''}
           </h2>
+
+          {players != null && players.length > 0 && (
+            <input
+              className="search"
+              type="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="Coller un ID pour filtrer…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          )}
+
           {error ? (
             <p className="err">Erreur de chargement : {error}</p>
           ) : players == null ? (
             <p className="muted">Chargement…</p>
           ) : players.length === 0 ? (
             <p className="muted">Aucun joueur enregistré.</p>
+          ) : filtered.length === 0 ? (
+            <p className="muted">Aucun joueur pour « {query.trim()} ».</p>
           ) : (
             <ul className="players">
-              {players.map((uid) => (
+              {filtered.map((uid) => (
                 <li key={uid}>
-                  <Link href={`/admin/${encodeURIComponent(uid)}`} className="player">
+                  <Link
+                    href={`/admin/${encodeURIComponent(uid)}`}
+                    className="player"
+                  >
                     <span className="mono">{uid}</span>
                     {uid === user.uid && <span className="badge">vous</span>}
                   </Link>
@@ -109,30 +135,51 @@ export default function AdminHome() {
           min-height: 100vh;
           max-width: 760px;
           margin: 0 auto;
-          padding: 2rem 1.25rem 4rem;
+          padding: 1.5rem 1rem 3rem;
           background: #0a0e14;
           color: #cfe0f0;
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
         .admin-head {
           display: flex;
-          align-items: baseline;
+          flex-wrap: wrap;
+          align-items: center;
           justify-content: space-between;
-          gap: 1rem;
+          gap: 0.75rem;
           border-bottom: 1px solid #1d2735;
           padding-bottom: 1rem;
           margin-bottom: 1.5rem;
         }
         .admin-head h1 {
-          font-size: 1.25rem;
+          font-size: 1.15rem;
           margin: 0;
           color: #5fd0ff;
         }
+        .search {
+          width: 100%;
+          box-sizing: border-box;
+          min-height: 44px;
+          margin-bottom: 0.9rem;
+          padding: 0.55rem 0.7rem;
+          background: #0a0e14;
+          border: 1px solid #2a3a4d;
+          border-radius: 4px;
+          color: #e6f1fb;
+          font: inherit;
+        }
+        .search:focus {
+          outline: none;
+          border-color: #5fd0ff;
+        }
+        .search::placeholder {
+          color: #51647a;
+        }
         .admin-head button {
+          min-height: 44px;
           background: transparent;
           border: 1px solid #2a3a4d;
           color: #cfe0f0;
-          padding: 0.35rem 0.7rem;
+          padding: 0.5rem 0.8rem;
           border-radius: 4px;
           cursor: pointer;
           font: inherit;
@@ -166,7 +213,8 @@ export default function AdminHome() {
           align-items: center;
           justify-content: space-between;
           gap: 0.75rem;
-          padding: 0.55rem 0.75rem;
+          min-height: 48px;
+          padding: 0.7rem 0.85rem;
           border: 1px solid #1d2735;
           border-radius: 4px;
           color: #e6f1fb;
@@ -195,6 +243,14 @@ export default function AdminHome() {
         }
         .err {
           color: #ff8c8c;
+        }
+        @media (min-width: 560px) {
+          .admin {
+            padding: 2rem 1.25rem 4rem;
+          }
+          .admin-head h1 {
+            font-size: 1.25rem;
+          }
         }
       `}</style>
     </>

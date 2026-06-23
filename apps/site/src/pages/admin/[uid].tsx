@@ -162,15 +162,15 @@ export default function AdminPlayer() {
       </Head>
       <main className="admin">
         <header className="admin-head">
-          <div>
+          <div className="bar">
             <Link href="/admin" className="back">
               ← Joueurs
             </Link>
-            <h1 className="mono">{uid}</h1>
+            <button type="button" onClick={() => signOut()}>
+              Déconnexion
+            </button>
           </div>
-          <button type="button" onClick={() => signOut()}>
-            Déconnexion
-          </button>
+          <h1 className="mono">{uid}</h1>
         </header>
 
         {error && <p className="err">Erreur : {error}</p>}
@@ -234,36 +234,45 @@ export default function AdminPlayer() {
           min-height: 100vh;
           max-width: 760px;
           margin: 0 auto;
-          padding: 2rem 1.25rem 4rem;
+          padding: 1.5rem 1rem 3rem;
           background: #0a0e14;
           color: #cfe0f0;
           font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
         .admin-head {
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
+          flex-direction: column;
+          gap: 0.75rem;
           border-bottom: 1px solid #1d2735;
           padding-bottom: 1rem;
           margin-bottom: 1.5rem;
         }
+        .bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+        }
         .back {
+          display: inline-flex;
+          align-items: center;
+          min-height: 44px;
           color: #6f8aa3;
           text-decoration: none;
-          font-size: 0.85rem;
+          font-size: 0.9rem;
         }
         .admin-head h1 {
-          font-size: 0.95rem;
-          margin: 0.35rem 0 0;
+          font-size: 0.9rem;
+          margin: 0;
           color: #5fd0ff;
         }
         .admin-head button {
           flex: none;
+          min-height: 44px;
           background: transparent;
           border: 1px solid #2a3a4d;
           color: #cfe0f0;
-          padding: 0.35rem 0.7rem;
+          padding: 0.5rem 0.8rem;
           border-radius: 4px;
           cursor: pointer;
           font: inherit;
@@ -284,7 +293,7 @@ export default function AdminPlayer() {
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: 1fr;
           gap: 0.9rem;
         }
         .field {
@@ -303,11 +312,13 @@ export default function AdminPlayer() {
           font-style: normal;
         }
         input {
+          width: 100%;
+          box-sizing: border-box;
           background: #0a0e14;
           border: 1px solid #2a3a4d;
           border-radius: 4px;
           color: #e6f1fb;
-          padding: 0.45rem 0.6rem;
+          padding: 0.6rem 0.7rem;
           font: inherit;
         }
         input:focus {
@@ -316,13 +327,16 @@ export default function AdminPlayer() {
         }
         .actions {
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 0.75rem;
-          margin-top: 1.1rem;
+          gap: 0.6rem;
+          margin-top: 1.25rem;
         }
         .actions button {
+          flex: 1 1 auto;
+          min-height: 44px;
           border-radius: 4px;
-          padding: 0.45rem 0.9rem;
+          padding: 0.6rem 0.9rem;
           cursor: pointer;
           font: inherit;
           border: 1px solid #2a3a4d;
@@ -367,6 +381,17 @@ export default function AdminPlayer() {
         }
         .err {
           color: #ff8c8c;
+        }
+        @media (min-width: 560px) {
+          .admin {
+            padding: 2rem 1.25rem 4rem;
+          }
+          .grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .actions button {
+            flex: 0 0 auto;
+          }
         }
       `}</style>
     </>
