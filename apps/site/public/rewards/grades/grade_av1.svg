@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 100" role="img" aria-label="Insigne Aviateur de 1re classe">
+  <title>Aviateur de 1re classe</title>
+  <rect x="16" y="4" width="28" height="92" rx="2.5" fill="#16235a" stroke="#33509e" stroke-width="0.8"/>
+  <polyline points="16.5,10 30,19.5 43.5,10" fill="none" stroke="#4d8bff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#e6c25a">
+    <polygon points="30.00,65.00 27.52,60.73 32.48,60.73"/>
+    <polygon points="35.79,67.11 36.63,62.24 40.43,65.43"/>
+    <polygon points="38.86,72.44 42.64,69.25 43.50,74.14"/>
+    <polygon points="37.79,78.50 42.73,78.48 40.25,82.79"/>
+    <polygon points="33.08,82.46 36.87,85.62 32.20,87.32"/>
+    <polygon points="26.92,82.46 27.80,87.32 23.13,85.62"/>
+    <polygon points="22.21,78.50 19.75,82.79 17.27,78.48"/>
+    <polygon points="21.14,72.44 16.50,74.14 17.36,69.25"/>
+    <polygon points="24.21,67.11 19.57,65.43 23.37,62.24"/>
+  </g>
+  <circle cx="30" cy="74" r="13.5" fill="none" stroke="#d9b24a" stroke-width="1.1"/>
+  <circle cx="30" cy="74" r="9.0" fill="none" stroke="#d9b24a" stroke-width="1.1"/>
+</svg>

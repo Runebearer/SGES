@@ -183,6 +183,21 @@ const LOCK = (
   </svg>
 );
 
+// Chevron : marqueur d'ouverture/fermeture d'une catégorie repliable. Pivote
+// via CSS selon l'état [open] du <details> parent.
+const CHEVRON = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 // Petite fenêtre HUD du nombre d'artefacts possédés (toujours visible).
 function ArtifactWindow() {
   const { t } = useTranslation('common');
@@ -555,9 +570,11 @@ const TROPHIES: Trophy[] = [
 function RewardsView() {
   const { t } = useTranslation('common');
   const { player } = useAuth();
-  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(
-    null
-  );
+  const [lightbox, setLightbox] = useState<{
+    src: string;
+    alt: string;
+    title: string;
+  } | null>(null);
 
   const trophies = TROPHIES.map((tr) => ({
     ...tr,
@@ -568,6 +585,16 @@ function RewardsView() {
     isUnlocked: isGradeUnlocked(g, player),
     level: gradeLevel(g),
   }));
+
+  // Compteurs pour le tableau récapitulatif : nombre de récompenses obtenues
+  // par catégorie (grades / trophées) et total cumulé.
+  const gradesUnlocked = grades.filter((g) => g.isUnlocked).length;
+  const trophiesUnlocked = trophies.filter((tr) => tr.isUnlocked).length;
+  const totalUnlocked = gradesUnlocked + trophiesUnlocked;
+  const recapRows = [
+    { key: 'grades', label: t('dashboard.sections.rewards.recap.grades'), count: gradesUnlocked },
+    { key: 'trophies', label: t('dashboard.sections.rewards.recap.trophies'), count: trophiesUnlocked },
+  ];
 
   // Fermeture de la visionneuse plein écran à la touche Échap.
   useEffect(() => {
@@ -581,11 +608,54 @@ function RewardsView() {
 
   return (
     <>
-      {/* Galerie des grades : débloqués automatiquement selon le niveau. */}
-      <div className="actions-list rewards-gallery grades-gallery">
+      {/* Tableau récapitulatif : total obtenu puis détail par catégorie. */}
+      <table className="rewards-recap">
+        <thead>
+          <tr>
+            <th colSpan={2} className="rewards-recap-total-cell">
+              <div className="rewards-recap-total">
+                <span className="rewards-recap-total-label">
+                  {t('dashboard.sections.rewards.recap.total')}
+                </span>
+                <span className="rewards-recap-total-value">
+                  {totalUnlocked}
+                </span>
+              </div>
+            </th>
+          </tr>
+          <tr>
+            <th scope="col">{t('dashboard.sections.rewards.recap.category')}</th>
+            <th scope="col" className="rewards-recap-num">
+              {t('dashboard.sections.rewards.recap.count')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {recapRows.map((row) => (
+            <tr key={row.key}>
+              <td>{row.label}</td>
+              <td className="rewards-recap-num">{row.count}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Catégorie « Grades » : repliable, pliée par défaut (titre seul). */}
+      <details className="reward-category">
+        <summary className="reward-category-summary">
+          <span className="reward-category-chevron" aria-hidden="true">
+            {CHEVRON}
+          </span>
+          <span className="reward-category-title">
+            {t('dashboard.sections.rewards.recap.grades')}
+          </span>
+          <span className="reward-category-count">{gradesUnlocked}</span>
+        </summary>
+        <div className="actions-list rewards-gallery grades-gallery">
         {grades.map((g) => {
           const open = () =>
-            g.isUnlocked && setLightbox({ src: g.image, alt: g.name });
+            g.isUnlocked &&
+            setLightbox({ src: g.image, alt: g.name, title: g.name });
           return (
             <div
               key={g.id}
@@ -626,10 +696,21 @@ function RewardsView() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </details>
 
-      {/* Trophées spéciaux (récompenses ponctuelles). */}
-      <div className="actions-list rewards-gallery">
+      {/* Catégorie « Trophées » spéciaux : repliable, pliée par défaut. */}
+      <details className="reward-category">
+        <summary className="reward-category-summary">
+          <span className="reward-category-chevron" aria-hidden="true">
+            {CHEVRON}
+          </span>
+          <span className="reward-category-title">
+            {t('dashboard.sections.rewards.recap.trophies')}
+          </span>
+          <span className="reward-category-count">{trophiesUnlocked}</span>
+        </summary>
+        <div className="actions-list rewards-gallery">
         {trophies.map((tr) => {
           const title = tr.isUnlocked
             ? t(`dashboard.sections.rewards.${tr.i18nKey}.title`)
@@ -642,6 +723,7 @@ function RewardsView() {
             setLightbox({
               src: tr.image,
               alt: t(`dashboard.sections.rewards.${tr.i18nKey}.alt`),
+              title,
             });
           return (
             <div
@@ -673,7 +755,8 @@ function RewardsView() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </details>
 
       {lightbox && (
         <div
@@ -691,7 +774,12 @@ function RewardsView() {
           >
             ×
           </button>
-          <img src={lightbox.src} alt={lightbox.alt} />
+          <figure className="reward-lightbox-figure">
+            <img src={lightbox.src} alt={lightbox.alt} />
+            <figcaption className="reward-lightbox-title">
+              {lightbox.title}
+            </figcaption>
+          </figure>
         </div>
       )}
     </>
@@ -2138,6 +2226,140 @@ export default function Dashboard() {
         }
 
         /* ---- RÉCOMPENSES (galerie de trophées) ---- */
+        /* Bloc catégorie repliable (<details>) : fermé, n'affiche que son titre. */
+        .dashboard-screen .reward-category {
+          max-width: 920px;
+          margin: 0 0 20px;
+          border: 1px solid rgba(120, 170, 255, 0.3);
+          background: rgba(37, 99, 255, 0.05);
+        }
+        /* Barre-titre cliquable (le marqueur natif est masqué). */
+        .dashboard-screen .reward-category-summary {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 16px;
+          cursor: pointer;
+          list-style: none;
+          font-family: monospace;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+          user-select: none;
+        }
+        .dashboard-screen .reward-category-summary::-webkit-details-marker {
+          display: none;
+        }
+        .dashboard-screen .reward-category-summary:hover {
+          background: rgba(37, 99, 255, 0.1);
+        }
+        .dashboard-screen .reward-category-summary:focus-visible {
+          outline: 1px solid var(--electric-bright);
+          outline-offset: -3px;
+        }
+        /* Chevron : pointe à droite (fermé), pivote vers le bas une fois ouvert. */
+        .dashboard-screen .reward-category-chevron {
+          display: inline-flex;
+          width: 16px;
+          height: 16px;
+          color: var(--electric-bright);
+          transition: transform 0.2s ease;
+        }
+        .dashboard-screen .reward-category[open] .reward-category-chevron {
+          transform: rotate(90deg);
+        }
+        .dashboard-screen .reward-category-title {
+          flex: 1;
+        }
+        /* Compteur de récompenses obtenues dans la catégorie. */
+        .dashboard-screen .reward-category-count {
+          min-width: 22px;
+          padding: 1px 8px;
+          text-align: center;
+          font-variant-numeric: tabular-nums;
+          color: #c9b3ff;
+          background: rgba(37, 99, 255, 0.18);
+          border: 1px solid rgba(120, 170, 255, 0.4);
+        }
+        /* Marge interne autour de la grille quand la catégorie est ouverte. */
+        .dashboard-screen .reward-category[open] .rewards-gallery {
+          margin: 4px 16px 16px;
+        }
+
+        /* Tableau récapitulatif : total obtenu + détail par catégorie. */
+        .dashboard-screen .rewards-recap {
+          width: 100%;
+          max-width: 920px;
+          margin: 0 0 24px;
+          border-collapse: collapse;
+          font-family: monospace;
+          color: var(--text-main);
+          background: linear-gradient(
+            155deg,
+            rgba(37, 99, 255, 0.12),
+            rgba(168, 85, 247, 0.06) 50%,
+            rgba(11, 58, 168, 0.14)
+          );
+          border: 1px solid rgba(120, 170, 255, 0.4);
+          box-shadow: inset 0 0 30px rgba(37, 99, 255, 0.12);
+        }
+        /* Cellule du total : sans padding pour laisser le bandeau interne
+           occuper toute la largeur (colSpan = les 2 colonnes). */
+        .dashboard-screen .rewards-recap-total-cell {
+          padding: 0;
+        }
+        /* Bandeau « total » : pleine largeur, accent bleu électrique. */
+        .dashboard-screen .rewards-recap-total {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+          box-sizing: border-box;
+          padding: 14px 18px;
+          border-bottom: 1px solid rgba(77, 139, 255, 0.5);
+          background: rgba(37, 99, 255, 0.18);
+        }
+        .dashboard-screen .rewards-recap-total-label {
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          color: var(--electric-bright);
+        }
+        .dashboard-screen .rewards-recap-total-value {
+          font-size: 1.4rem;
+          font-weight: 700;
+          color: var(--electric-bright);
+          filter: drop-shadow(0 0 8px rgba(77, 139, 255, 0.6));
+        }
+        /* En-tête de colonnes (Catégorie / Obtenues). */
+        .dashboard-screen .rewards-recap thead th[scope='col'] {
+          padding: 8px 18px;
+          font-size: 0.7rem;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          text-align: left;
+          color: #9bd8ff;
+          border-bottom: 1px solid rgba(120, 170, 255, 0.3);
+        }
+        .dashboard-screen .rewards-recap tbody td {
+          padding: 10px 18px;
+          font-size: 0.85rem;
+          border-bottom: 1px solid rgba(120, 170, 255, 0.15);
+        }
+        .dashboard-screen .rewards-recap tbody tr:last-child td {
+          border-bottom: none;
+        }
+        /* Colonne des nombres : alignée à droite. */
+        .dashboard-screen .rewards-recap-num {
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+          color: #c9b3ff;
+        }
+
         /* Réutilise les cartes holographiques des missions
            (.action-card / .action-face) ; mêmes grille et style. */
         .dashboard-screen .rewards-gallery {
@@ -2249,12 +2471,33 @@ export default function Dashboard() {
           cursor: zoom-out;
           animation: reward-fade 0.2s ease;
         }
-        .dashboard-screen .reward-lightbox img {
+        /* Image + légende (nom de la récompense) empilées et centrées. */
+        .dashboard-screen .reward-lightbox-figure {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
           max-width: 100%;
           max-height: 100%;
+          margin: 0;
+        }
+        .dashboard-screen .reward-lightbox img {
+          max-width: 100%;
+          max-height: calc(100% - 48px);
           object-fit: contain;
           border: 1px solid rgba(212, 175, 55, 0.5);
           box-shadow: 0 0 40px rgba(212, 175, 55, 0.25);
+        }
+        /* Nom de la récompense sous l'image. */
+        .dashboard-screen .reward-lightbox-title {
+          font-family: monospace;
+          font-size: 1rem;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+          text-align: center;
+          color: #f4e4b8;
+          text-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
         }
         .dashboard-screen .reward-lightbox-close {
           position: absolute;
@@ -2442,6 +2685,46 @@ export default function Dashboard() {
           }
           .dashboard-screen .action-desc {
             font-size: 0.92rem;
+          }
+
+          /* ---- RÉCOMPENSES : 3 vignettes compactes par ligne ---- */
+          .dashboard-screen .rewards-gallery {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: none;
+          }
+          /* Cartes resserrées : padding réduit, coins biseautés plus petits. */
+          .dashboard-screen .rewards-gallery .action-face {
+            gap: 6px;
+            padding: 12px 8px;
+            clip-path: polygon(
+              0 10px,
+              10px 0,
+              100% 0,
+              100% calc(100% - 10px),
+              calc(100% - 10px) 100%,
+              0 100%
+            );
+          }
+          /* Texte recompacté (l'emporte sur les tailles mobiles ci-dessus). */
+          .dashboard-screen .rewards-gallery .action-name {
+            font-size: 0.62rem;
+            letter-spacing: 1px;
+          }
+          .dashboard-screen .rewards-gallery .action-desc {
+            font-size: 0.6rem;
+          }
+          /* Médias (image de grade / icône trophée) réduits. */
+          .dashboard-screen .rewards-gallery .reward-media {
+            height: 48px;
+          }
+          .dashboard-screen .rewards-gallery .grade-thumb {
+            width: 44px;
+            height: 44px;
+          }
+          .dashboard-screen .rewards-gallery .reward-trophy-icon {
+            width: 34px;
+            height: 34px;
           }
         }
       `}</style>

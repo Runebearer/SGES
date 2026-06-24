@@ -112,6 +112,13 @@
         "locked": "Locked trophy",
         "locked_hint": "Complete your first archaeological research to unlock your first reward.",
         "grade_level": "Level {{level}}",
+        "recap": {
+          "total": "Total rewards earned",
+          "category": "Category",
+          "count": "Earned",
+          "grades": "Grades",
+          "trophies": "Trophies"
+        },
         "coverstone": {
           "title": "Giza Coverstone",
           "desc": "Archival survey of the Stargate coverstone (1928): the first coordinate cartouche and constellation symbols translated.",
