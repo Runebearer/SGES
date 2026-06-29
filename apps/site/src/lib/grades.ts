@@ -31,7 +31,7 @@ export interface Grade {
 const IMG = (file: string) => `/rewards/grades/${file}`;
 
 export const GRADES: Grade[] = [
-  { id: 'mdr', name: 'Militaire du rang', image: IMG('militdr.png'), category: 'grade', conditions: [{ field: 'level', operator: '>=', value: 1 }] },
+  { id: 'mdr', name: 'Militaire du rang', image: IMG('grade_mdr.svg'), category: 'grade', conditions: [{ field: 'level', operator: '>=', value: 1 }] },
   { id: 'av2', name: 'Aviateur de 2ème classe (AV2)', image: IMG('grade_av2.svg'), category: 'grade', conditions: [{ field: 'level', operator: '>=', value: 1 }] },
   { id: 'av1', name: 'Aviateur de 1ère classe (AV1)', image: IMG('grade_av1.svg'), category: 'grade', conditions: [{ field: 'level', operator: '>=', value: 5 }] },
   { id: 'cal', name: 'Caporal (CAL)', image: IMG('grade_cal.svg'), category: 'grade', conditions: [{ field: 'level', operator: '>=', value: 10 }] },
