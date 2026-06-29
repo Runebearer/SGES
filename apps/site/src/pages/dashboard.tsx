@@ -2481,9 +2481,14 @@ export default function Dashboard() {
           max-height: 100%;
           margin: 0;
         }
+        /* Hauteur DÉFINIE (unités viewport) : indispensable pour que les SVG
+           (sans width/height intrinsèques) montent à l'échelle, et pour que
+           toutes les récompenses s'affichent à la même hauteur. La largeur
+           suit le ratio ; max-width borne le cas paysage (photo trophée). */
         .dashboard-screen .reward-lightbox img {
-          max-width: 100%;
-          max-height: calc(100% - 48px);
+          width: auto;
+          height: min(65vh, 560px);
+          max-width: 90vw;
           object-fit: contain;
           border: 1px solid rgba(212, 175, 55, 0.5);
           box-shadow: 0 0 40px rgba(212, 175, 55, 0.25);
