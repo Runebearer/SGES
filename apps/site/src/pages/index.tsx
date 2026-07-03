@@ -5,6 +5,7 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import StargateRing from '../components/StargateRing';
+import StargateVortex from '../components/StargateVortex';
 import { useAuth } from '../context/AuthContext';
 import nextI18NextConfig from '../../next-i18next.config.js';
 
@@ -66,6 +67,9 @@ export default function Home() {
         </h1>
         <div className="gate">
           <StargateRing />
+          <div className="vortex-wrap">
+            <StargateVortex />
+          </div>
         </div>
 
         <div className="gate-cta">
@@ -280,6 +284,18 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           filter: drop-shadow(0 0 25px rgba(0, 210, 255, 0.08));
+        }
+
+        .vortex-wrap {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 81.5%;
+          height: 81.5%;
+          transform: translate(-50%, -50%);
+          border-radius: 50%;
+          overflow: hidden;
+          pointer-events: none;
         }
 
         .gate-cta {
