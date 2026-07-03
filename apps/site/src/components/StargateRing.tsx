@@ -64,6 +64,7 @@ export default function StargateRing({ size, className, style }: StargateRingPro
           transform-origin: 50% 50%;
           overflow: visible;
           animation: rotateGate 180s linear infinite;
+          filter: brightness(1.5);
         }
 
         .stargate-ring path {

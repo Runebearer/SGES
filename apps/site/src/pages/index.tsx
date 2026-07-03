@@ -64,19 +64,20 @@ export default function Home() {
           <span className="accent">E</span>xploration{' '}
           <span className="accent">S</span>patiale
         </h1>
-        <p>{t('hero.subtitle')}</p>
-
         <div className="gate">
           <StargateRing />
-          <div className="gate-cta">
-            {/* Connecté : accès direct au dashboard (SGC-F). Sinon : connexion. */}
-            {user ? (
-              <Link href="/dashboard" className="btn">{t('hero.cta_dashboard')}</Link>
-            ) : (
-              <Link href="/login" className="btn">{t('hero.cta')}</Link>
-            )}
-          </div>
         </div>
+
+        <div className="gate-cta">
+          {/* Connecté : accès direct au dashboard (SGC-F). Sinon : connexion. */}
+          {user ? (
+            <Link href="/dashboard" className="btn">{t('hero.cta_dashboard')}</Link>
+          ) : (
+            <Link href="/login" className="btn">{t('hero.cta')}</Link>
+          )}
+        </div>
+
+        <p>{t('hero.subtitle')}</p>
       </section>
 
       {/* ===== MAIN / FEATURES ===== */}
@@ -281,13 +282,8 @@ export default function Home() {
           filter: drop-shadow(0 0 25px rgba(0, 210, 255, 0.08));
         }
 
-        /* Bouton figé au centre de l'anneau (frère du SVG : il ne tourne pas) */
         .gate-cta {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 1;
+          margin-top: 30px;
         }
 
         .hero h1 {
@@ -308,7 +304,7 @@ export default function Home() {
         .hero p {
           font-size: 1.1rem;
           max-width: 650px;
-          margin-bottom: 40px;
+          margin-top: 40px;
           color: var(--cyan);
           font-weight: 500;
           line-height: 1.6;
