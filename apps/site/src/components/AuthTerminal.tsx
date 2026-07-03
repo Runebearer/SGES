@@ -386,14 +386,21 @@ export default function AuthTerminal({
           box-shadow: 0 0 14px rgba(0, 210, 255, 0.3);
         }
 
-        /* ---- BOUTON ---- */
+        /* ---- BOUTON (design holographique, identique aux cartes du dashboard) ---- */
         .auth-screen button {
           position: relative;
           margin-top: 8px;
           padding: 14px;
-          background: var(--deep-blue);
-          color: #fff;
-          border: 1px solid var(--cyan);
+          color: #eafcff;
+          text-shadow: 0 0 8px rgba(99, 150, 255, 0.6);
+          background: linear-gradient(
+            155deg,
+            rgba(37, 99, 255, 0.35),
+            rgba(168, 85, 247, 0.18) 50%,
+            rgba(11, 58, 168, 0.4)
+          );
+          border: 1px solid rgba(120, 170, 255, 0.6);
+          backdrop-filter: blur(8px);
           font-family: 'Allerta Stencil', sans-serif;
           text-transform: uppercase;
           letter-spacing: 3px;
@@ -401,14 +408,14 @@ export default function AuthTerminal({
           cursor: pointer;
           overflow: hidden;
           clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
-          transition: all 0.25s;
-          box-shadow: 0 0 16px rgba(30, 58, 138, 0.5);
+          transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.25s ease;
+          box-shadow: inset 0 0 30px rgba(37, 99, 255, 0.18), 0 0 18px rgba(37, 99, 255, 0.35);
         }
 
         .auth-screen button:hover:not(:disabled) {
-          background: var(--cyan);
-          color: #030712;
-          box-shadow: 0 0 26px rgba(0, 210, 255, 0.7);
+          border-color: rgba(150, 200, 255, 0.9);
+          box-shadow: inset 0 0 40px rgba(77, 139, 255, 0.28), 0 0 30px rgba(77, 139, 255, 0.55);
+          transform: translateY(-2px);
         }
 
         .auth-screen button:disabled {
@@ -416,30 +423,49 @@ export default function AuthTerminal({
           cursor: not-allowed;
         }
 
-        .auth-screen button:not(:disabled)::after {
+        /* Balayage irisé « hologramme ». */
+        .auth-screen button:not(:disabled)::before {
           content: '';
           position: absolute;
-          top: 0;
-          left: -60%;
-          width: 40%;
-          height: 100%;
+          inset: -60%;
           background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.35),
-            transparent
+            115deg,
+            transparent 35%,
+            rgba(120, 200, 255, 0.25) 45%,
+            rgba(168, 85, 247, 0.28) 50%,
+            rgba(125, 255, 225, 0.22) 55%,
+            transparent 65%
           );
-          transform: skewX(-20deg);
-          animation: auth-shine 3.5s ease-in-out infinite;
+          transform: translate(-25%, -15%);
+          animation: auth-holo-sweep 7s linear infinite;
+          pointer-events: none;
         }
 
-        @keyframes auth-shine {
-          0%,
-          70% {
-            left: -60%;
+        /* Lignes de balayage (scanlines). */
+        .auth-screen button::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.05) 0 1px,
+            transparent 1px 3px
+          );
+          opacity: 0.35;
+          pointer-events: none;
+        }
+
+        @keyframes auth-holo-sweep {
+          0% {
+            transform: translate(-25%, -15%);
+            opacity: 0.45;
+          }
+          50% {
+            opacity: 0.9;
           }
           100% {
-            left: 130%;
+            transform: translate(25%, 15%);
+            opacity: 0.45;
           }
         }
 

@@ -326,7 +326,7 @@ export default function Home() {
           line-height: 1.6;
         }
 
-        /* ---- BUTTON (style terminal, identique aux pages auth) ---- */
+        /* ---- BUTTON (design holographique, identique aux cartes du dashboard) ---- */
         .btn {
           position: relative;
           display: inline-block;
@@ -338,43 +338,69 @@ export default function Home() {
           font-size: 1.05rem;
           overflow: hidden;
           clip-path: polygon(15px 0%, 100% 0%, calc(100% - 15px) 100%, 0% 100%);
-          background: var(--deep-blue);
-          color: #fff;
-          border: 1px solid var(--cyan);
-          box-shadow: 0 0 16px rgba(30, 58, 138, 0.5);
-          transition: all 0.25s;
+          color: #eafcff;
+          text-shadow: 0 0 8px rgba(99, 150, 255, 0.6);
+          background: linear-gradient(
+            155deg,
+            rgba(37, 99, 255, 0.35),
+            rgba(168, 85, 247, 0.18) 50%,
+            rgba(11, 58, 168, 0.4)
+          );
+          border: 1px solid rgba(120, 170, 255, 0.6);
+          backdrop-filter: blur(8px);
+          box-shadow: inset 0 0 30px rgba(37, 99, 255, 0.18), 0 0 18px rgba(37, 99, 255, 0.35);
+          transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.25s ease;
         }
 
         .btn:hover {
-          background: var(--cyan);
-          color: #030712;
-          box-shadow: 0 0 26px rgba(0, 210, 255, 0.7);
+          border-color: rgba(150, 200, 255, 0.9);
+          box-shadow: inset 0 0 40px rgba(77, 139, 255, 0.28), 0 0 30px rgba(77, 139, 255, 0.55);
+          transform: translateY(-2px);
         }
 
+        /* Balayage irisé « hologramme ». */
+        .btn::before {
+          content: '';
+          position: absolute;
+          inset: -60%;
+          background: linear-gradient(
+            115deg,
+            transparent 35%,
+            rgba(120, 200, 255, 0.25) 45%,
+            rgba(168, 85, 247, 0.28) 50%,
+            rgba(125, 255, 225, 0.22) 55%,
+            transparent 65%
+          );
+          transform: translate(-25%, -15%);
+          animation: holo-sweep 7s linear infinite;
+          pointer-events: none;
+        }
+
+        /* Lignes de balayage (scanlines). */
         .btn::after {
           content: '';
           position: absolute;
-          top: 0;
-          left: -60%;
-          width: 40%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.35),
-            transparent
+          inset: 0;
+          background: repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.05) 0 1px,
+            transparent 1px 3px
           );
-          transform: skewX(-20deg);
-          animation: btn-shine 3.5s ease-in-out infinite;
+          opacity: 0.35;
+          pointer-events: none;
         }
 
-        @keyframes btn-shine {
-          0%,
-          70% {
-            left: -60%;
+        @keyframes holo-sweep {
+          0% {
+            transform: translate(-25%, -15%);
+            opacity: 0.45;
+          }
+          50% {
+            opacity: 0.9;
           }
           100% {
-            left: 130%;
+            transform: translate(25%, 15%);
+            opacity: 0.45;
           }
         }
 
