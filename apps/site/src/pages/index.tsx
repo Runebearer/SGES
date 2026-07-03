@@ -471,9 +471,17 @@ export default function Home() {
         /* ---- RESPONSIVE ---- */
         @media (max-width: 768px) {
           .site-header {
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
             gap: 15px;
             padding: 15px 20px;
+          }
+
+          nav {
+            order: 3;
+            width: 100%;
           }
 
           nav ul {
