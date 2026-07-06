@@ -1,0 +1,32 @@
+[
+  {
+    "id": "chulak",
+    "name": "Chulak",
+    "description": "Monde d'origine de nombreux Jaffa, dont Teal'c. Foyer d'une rébellion naissante contre les Goa'uld, encore sous l'ombre d'Apophis."
+  },
+  {
+    "id": "abydos",
+    "name": "Abydos",
+    "description": "Monde désertique jadis gouverné par Ra, où fut découverte la seconde Porte des étoiles. Patrie d'adoption de Daniel Jackson."
+  },
+  {
+    "id": "kelowna",
+    "name": "Kelowna",
+    "description": "Patrie de Jonas Quinn. Ses mines souterraines recèlent du Naquadria, une variante instable et surpuissante du Naquadah."
+  },
+  {
+    "id": "tollana",
+    "name": "Tollana",
+    "description": "Cité-monde des Tollans, civilisation d'une avance technologique redoutable, farouchement neutre dans les conflits de la galaxie."
+  },
+  {
+    "id": "cimmeria",
+    "name": "Cimmeria",
+    "description": "Monde protégé par le Marteau de Thor, dispositif de défense asgard qui interdit tout débarquement Goa'uld."
+  },
+  {
+    "id": "netu",
+    "name": "Netu",
+    "description": "Lune-prison sans Porte des étoiles en surface, utilisée par le Système Seigneur Sokar pour y torturer ses ennemis."
+  }
+]

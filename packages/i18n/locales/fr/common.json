@@ -81,7 +81,8 @@
         "energy": { "title": "Niveau d'énergie" },
         "cards": {
           "electricity": "Électricité stockée",
-          "artifacts": "Artefacts"
+          "artifacts": "Artefacts",
+          "genericCoordinates": "Coordonnées"
         }
       },
       "sgcf": {

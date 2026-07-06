@@ -13,6 +13,13 @@ export const MAX_ELECTRICITY = 100;
 export const MAX_ARTIFACTS = 30;
 
 /**
+ * Nombre maximal de cartouches de coordonnées génériques détenus. Ressource de
+ * type compteur (comme les artefacts) : consommée à l'usage (une mission de
+ * collecte à venir en dépensera un), le cartouche disparaît alors.
+ */
+export const MAX_GENERIC_COORDINATES = 30;
+
+/**
  * Nombre maximal d'entrées d'historique conservées par joueur (les plus
  * récentes). Borne la taille du document KV ; au-delà, les plus anciennes
  * entrées sont écartées.
@@ -51,6 +58,13 @@ export interface PlayerState {
   electricity: number;
   /** Nombre d'artefacts collectés (0–MAX_ARTIFACTS). */
   artifacts: number;
+  /**
+   * Cartouches de coordonnées génériques détenus (0–MAX_GENERIC_COORDINATES).
+   * Distincts des coordonnées spécifiques (cf. `addresses`) : ceux-ci sont un
+   * compteur anonyme destiné aux futures missions de collecte, consommé (et
+   * donc perdu) à l'usage.
+   */
+  genericCoordinates: number;
   /** Points d'expérience cumulés (≥ 0). Gagnés via les actions. */
   xp: number;
   /**
@@ -122,6 +136,9 @@ export interface ActionGain {
   electricity: number;
   artifactsMin: number;
   artifactsMax: number;
+  /** Cartouches de coordonnées génériques gagnés (tirage aléatoire, comme les artefacts). */
+  genericCoordinatesMin: number;
+  genericCoordinatesMax: number;
   xp: number;
 }
 
@@ -132,6 +149,30 @@ export type ActionSection = 'sgcf' | 'missions';
 export interface Address {
   id: string;
   name: string;
+}
+
+/**
+ * Conditions de déblocage d'une adresse au sein d'un pool `unlocksAddresses`.
+ * Toutes les conditions présentes doivent être satisfaites (ET logique).
+ * Absent (ou objet vide) = déblocage inconditionnel dès que l'adresse est la
+ * prochaine non possédée du pool.
+ */
+export interface AddressUnlockCondition {
+  /** Niveau d'habilitation minimum requis (≥). */
+  minLevel?: number;
+  /** Adresses déjà débloquées requises (id), toutes nécessaires. */
+  requiresAddresses?: string[];
+  /** Nombre minimum de voyages effectués (missions marquées `travel`, ≥). */
+  minTravels?: number;
+  /** Action(s) devant avoir été complétée(s) au moins une fois (id). */
+  requiresCompletedActions?: string[];
+}
+
+/** Entrée d'un pool `unlocksAddresses` : l'adresse et sa condition éventuelle. */
+export interface AddressUnlockEntry {
+  address: Address;
+  /** Absente = déblocage inconditionnel (comportement historique). */
+  condition?: AddressUnlockCondition;
 }
 
 /**
@@ -148,9 +189,12 @@ export interface SubMission {
   available?: boolean;
   /**
    * Pool ordonné d'adresses que cette recherche peut débloquer. À chaque
-   * complétion, le Worker débloque la PROCHAINE adresse non encore possédée.
+   * complétion, le Worker tente de débloquer la PREMIÈRE adresse non encore
+   * possédée du pool DONT LA CONDITION EST SATISFAITE ; si sa condition n'est
+   * pas remplie, rien n'est débloqué cette fois (le joueur pourra retenter
+   * plus tard, une fois la condition atteinte).
    */
-  unlocksAddresses?: Address[];
+  unlocksAddresses?: AddressUnlockEntry[];
 }
 
 /**
@@ -178,6 +222,12 @@ export interface ActionDef {
   durationSec: number;
   /** Sous-missions du thème, révélées au dos de la carte (peut être vide). */
   subMissions: SubMission[];
+  /**
+   * Si vrai, chaque complétion de cette action compte comme un « voyage »
+   * (traversée de la Porte vers une adresse) pour la condition `minTravels`
+   * d'un déblocage d'adresse. Absent/faux = action sur site (ne compte pas).
+   */
+  travel?: boolean;
 }
 
 /**
@@ -203,6 +253,8 @@ export interface ActionResultSummary {
   electricity: number;
   /** Artefacts réellement gagnés (tirage effectif, ≥ 0, après plafond). */
   artifacts: number;
+  /** Cartouches de coordonnées génériques réellement gagnés (≥ 0, après plafond). */
+  genericCoordinates: number;
   /** XP réellement gagnée (≥ 0). */
   xp: number;
   /** Adresse débloquée par cette action, le cas échéant. */
@@ -271,6 +323,7 @@ export interface AdminPlayerPatch {
   energy?: number;
   electricity?: number;
   artifacts?: number;
+  genericCoordinates?: number;
   xp?: number;
   /** Si true, réinitialise le joueur à l'état par défaut (ignore les autres champs). */
   reset?: boolean;

@@ -228,7 +228,13 @@ export default {
           const num = (v: unknown): number | undefined =>
             typeof v === 'number' && Number.isFinite(v) ? v : undefined;
           const patch: AdminPlayerPatch = {};
-          for (const f of ['energy', 'electricity', 'artifacts', 'xp'] as const) {
+          for (const f of [
+            'energy',
+            'electricity',
+            'artifacts',
+            'genericCoordinates',
+            'xp',
+          ] as const) {
             const v = num(body[f]);
             if (v != null) patch[f] = v;
           }

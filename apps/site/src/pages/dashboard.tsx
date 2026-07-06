@@ -8,6 +8,7 @@ import type { ActionDef, ActionSection, SubMission } from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import { GRADES, isGradeUnlocked, gradeLevel } from '../lib/grades';
+import { gateGlyphsForAddress } from '../lib/gateGlyphs';
 import nextI18NextConfig from '../../next-i18next.config.js';
 
 export const getStaticProps: GetStaticProps = async ({ locale }) => ({
@@ -136,6 +137,10 @@ const EYE_OF_RA = (
   </svg>
 );
 
+// Point d'origine : glyphe « A » de la police Stargate Glyphs (triangle
+// surmonté d'un point), réutilisé comme icône des coordonnées génériques.
+const POINT_OF_ORIGIN = <span className="gate-glyph-icon">A</span>;
+
 // Éclair : symbole de l'électricité stockée.
 const LIGHTNING = (
   <svg
@@ -212,6 +217,26 @@ function ArtifactWindow() {
       </span>
       <span className="artifact-count">
         {player ? player.artifacts : '—'}
+      </span>
+    </div>
+  );
+}
+
+// Petite fenêtre HUD du nombre de cartouches de coordonnées génériques
+// possédés (toujours visible dans la vue recherche, leur source actuelle).
+function GenericCoordinatesWindow() {
+  const { t } = useTranslation('common');
+  const { player } = useAuth();
+  return (
+    <div
+      className="artifact-window"
+      title={t('dashboard.sections.dashboard.cards.genericCoordinates')}
+    >
+      <span className="artifact-icon artifact-icon-gate" aria-hidden="true">
+        {POINT_OF_ORIGIN}
+      </span>
+      <span className="artifact-count">
+        {player ? player.genericCoordinates : '—'}
       </span>
     </div>
   );
@@ -493,7 +518,10 @@ function ResearchView({ onBack }: { onBack: () => void }) {
         <button type="button" className="research-back" onClick={onBack}>
           ← {t('dashboard.research.back')}
         </button>
-        <ArtifactWindow />
+        <div className="research-header-stats">
+          <ArtifactWindow />
+          <GenericCoordinatesWindow />
+        </div>
       </div>
 
       <section className="research-block">
@@ -528,10 +556,18 @@ function ResearchView({ onBack }: { onBack: () => void }) {
           <ul className="address-list">
             {addresses.map((addr) => (
               <li key={addr.id} className="address">
-                <span className="address-glyph" aria-hidden="true">
-                  ◈
+                <span className="address-name-row">
+                  <span className="address-glyph" aria-hidden="true">
+                    ◈
+                  </span>
+                  {addr.name}
                 </span>
-                {addr.name}
+                {/* Symboles de la Porte (police dédiée) : 6 destinations +
+                    point d'origine (toujours en dernier). Décoratif : le nom
+                    ci-dessus reste la source d'information accessible. */}
+                <span className="address-gate-glyphs" aria-hidden="true">
+                  {gateGlyphsForAddress(addr.id)}
+                </span>
               </li>
             ))}
           </ul>
@@ -1042,6 +1078,18 @@ export default function Dashboard() {
                       {t('dashboard.sections.dashboard.cards.artifacts')}
                     </span>
                   </div>
+                  <div className="stat">
+                    {/* Cartouches de coordonnées génériques (compteur, consommés à l'usage). */}
+                    <span className="stat-icon stat-icon-gate" aria-hidden="true">
+                      {POINT_OF_ORIGIN}
+                    </span>
+                    <span className="stat-value">
+                      {player ? player.genericCoordinates : '—'}
+                    </span>
+                    <span className="stat-label">
+                      {t('dashboard.sections.dashboard.cards.genericCoordinates')}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Récap des missions en cours, sous les ressources. */}
@@ -1423,6 +1471,14 @@ export default function Dashboard() {
           width: 100%;
           height: 100%;
         }
+        /* Point d'origine (coordonnées génériques) : bleu électrique, pas doré. */
+        .dashboard-screen .artifact-icon-gate {
+          color: var(--electric-bright);
+          filter: drop-shadow(0 0 5px rgba(77, 139, 255, 0.55));
+        }
+        .dashboard-screen .artifact-icon-gate .gate-glyph-icon {
+          font-size: 22px;
+        }
 
         .dashboard-screen .artifact-count {
           font-size: 1rem;
@@ -1676,6 +1732,25 @@ export default function Dashboard() {
         .dashboard-screen .stat-icon-power {
           color: var(--electric-bright);
           filter: drop-shadow(0 0 6px rgba(77, 139, 255, 0.6));
+        }
+        /* Point d'origine (coordonnées génériques) : bleu électrique, pas doré. */
+        .dashboard-screen .stat-icon-gate {
+          color: var(--electric-bright);
+          filter: drop-shadow(0 0 6px rgba(77, 139, 255, 0.6));
+        }
+        .dashboard-screen .stat-icon-gate .gate-glyph-icon {
+          font-size: 34px;
+        }
+        /* Glyphe texte (police Stargate Glyphs) utilisé comme icône : centré
+           dans le cadre carré prévu pour une icône SVG. */
+        .dashboard-screen .gate-glyph-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          font-family: 'Stargate Glyphs';
+          line-height: 1;
         }
         .dashboard-screen .stat-artifact .stat-value {
           color: #f4e4b8;
@@ -2131,6 +2206,12 @@ export default function Dashboard() {
           gap: 16px;
         }
 
+        .dashboard-screen .research-header-stats {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
         .dashboard-screen .research-back {
           font-family: monospace;
           font-size: 0.76rem;
@@ -2194,14 +2275,15 @@ export default function Dashboard() {
           margin: 0;
           padding: 0;
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 12px;
         }
 
         .dashboard-screen .address {
           display: flex;
-          align-items: center;
-          gap: 10px;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
           font-family: monospace;
           font-size: 0.9rem;
           letter-spacing: 2px;
@@ -2220,9 +2302,24 @@ export default function Dashboard() {
             0 100%
           );
         }
+        .dashboard-screen .address-name-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
         .dashboard-screen .address-glyph {
           color: var(--electric-bright);
           text-shadow: 0 0 8px rgba(77, 139, 255, 0.7);
+        }
+        /* Symboles de la Porte : police dédiée (glyphes des constellations),
+           taille généreuse pour rester lisible (formes fines). */
+        .dashboard-screen .address-gate-glyphs {
+          font-family: 'Stargate Glyphs', monospace;
+          font-size: 1.6rem;
+          letter-spacing: 6px;
+          line-height: 1;
+          color: var(--electric-bright);
+          text-shadow: 0 0 8px rgba(77, 139, 255, 0.5);
         }
 
         /* ---- RÉCOMPENSES (galerie de trophées) ---- */

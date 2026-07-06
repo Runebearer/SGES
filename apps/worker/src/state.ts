@@ -18,6 +18,7 @@ import {
   MAX_ENERGY,
   MAX_ELECTRICITY,
   MAX_ARTIFACTS,
+  MAX_GENERIC_COORDINATES,
   MAX_HISTORY,
   type PlayerState,
   type ActionCost,
@@ -25,6 +26,7 @@ import {
   type Address,
   type HistoryEntry,
   type AdminPlayerPatch,
+  type AddressUnlockCondition,
 } from '@sges/api-contract';
 import { ACTIONS_BY_ID } from './actions';
 import type { Env } from './index';
@@ -57,11 +59,16 @@ interface StoredPlayer {
   energy: StoredEnergy;
   electricity: number;
   artifacts: number;
+  genericCoordinates: number;
   xp: number;
   missions: StoredMission[];
   addresses: Address[];
   /** Journal des événements (actions terminées + passages de niveau), borné à MAX_HISTORY. */
   history: HistoryEntry[];
+  /** Nombre de « voyages » effectués (actions marquées `travel` complétées). */
+  travels: number;
+  /** Nombre de complétions par action (id → compteur), pour les conditions `requiresCompletedActions`. */
+  completedActions: Record<string, number>;
 }
 
 const DEFAULT_TZ = 'Europe/Paris';
@@ -159,10 +166,13 @@ function defaults(today: string): StoredPlayer {
     energy: { value: MAX_ENERGY, day: today },
     electricity: 0,
     artifacts: 0,
+    genericCoordinates: 0,
     xp: 0,
     missions: [],
     addresses: [],
     history: [],
+    travels: 0,
+    completedActions: {},
   };
 }
 
@@ -179,6 +189,11 @@ function parse(raw: string | null): StoredPlayer | null {
       },
       electricity: clamp(num(o.electricity, 0), 0, MAX_ELECTRICITY),
       artifacts: clamp(Math.floor(num(o.artifacts, 0)), 0, MAX_ARTIFACTS),
+      genericCoordinates: clamp(
+        Math.floor(num(o.genericCoordinates, 0)),
+        0,
+        MAX_GENERIC_COORDINATES
+      ),
       xp: Math.max(0, num(o.xp, 0)),
       missions: Array.isArray(o.missions)
         ? o.missions
@@ -246,6 +261,7 @@ function parse(raw: string | null): StoredPlayer | null {
                   result: {
                     electricity: num(h.result.electricity, 0),
                     artifacts: num(h.result.artifacts, 0),
+                    genericCoordinates: num(h.result.genericCoordinates, 0),
                     xp: num(h.result.xp, 0),
                     ...(h.result.addressUnlocked &&
                     typeof h.result.addressUnlocked.id === 'string' &&
@@ -265,6 +281,15 @@ function parse(raw: string | null): StoredPlayer | null {
             .filter((h: HistoryEntry | null): h is HistoryEntry => h !== null)
             .slice(-MAX_HISTORY)
         : [],
+      travels: Math.max(0, Math.floor(num(o.travels, 0))),
+      completedActions:
+        o.completedActions && typeof o.completedActions === 'object'
+          ? Object.fromEntries(
+              Object.entries(o.completedActions as Record<string, unknown>)
+                .filter(([, v]) => typeof v === 'number' && Number.isFinite(v))
+                .map(([k, v]) => [k, Math.max(0, Math.floor(v as number))])
+            )
+          : {},
     };
   } catch {
     return null;
@@ -280,6 +305,43 @@ function applyDailyRefill(stored: StoredPlayer, today: string): StoredPlayer {
   return stored;
 }
 
+// Évalue une condition de déblocage d'adresse (ET logique entre les champs
+// présents). Absence de condition = toujours satisfaite.
+function conditionSatisfied(
+  condition: AddressUnlockCondition | undefined,
+  ctx: {
+    level: number;
+    addresses: Address[];
+    travels: number;
+    completedActions: Record<string, number>;
+  }
+): boolean {
+  if (!condition) return true;
+  if (condition.minLevel != null && ctx.level < condition.minLevel) {
+    return false;
+  }
+  if (
+    condition.requiresAddresses &&
+    !condition.requiresAddresses.every((id) =>
+      ctx.addresses.some((a) => a.id === id)
+    )
+  ) {
+    return false;
+  }
+  if (condition.minTravels != null && ctx.travels < condition.minTravels) {
+    return false;
+  }
+  if (
+    condition.requiresCompletedActions &&
+    !condition.requiresCompletedActions.every(
+      (id) => (ctx.completedActions[id] ?? 0) >= 1
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
 // Finalise les missions dont le timer est écoulé : applique leurs gains
 // (électricité / artefacts aléatoires / xp) et les retire de la liste.
 function completeMissions(
@@ -291,7 +353,10 @@ function completeMissions(
   const stillRunning: StoredMission[] = [];
   let electricity = stored.electricity;
   let artifacts = stored.artifacts;
+  let genericCoordinates = stored.genericCoordinates;
   let xp = stored.xp;
+  let travels = stored.travels;
+  const completedActions = { ...stored.completedActions };
   const addresses = [...stored.addresses];
   const history = [...stored.history];
   let completed = 0;
@@ -302,7 +367,7 @@ function completeMissions(
       if (def) {
         // Gains RÉELLEMENT crédités (différence après plafonnement) : c'est ce
         // qu'on journalise comme « résultat » de l'action.
-        const before = { electricity, artifacts };
+        const before = { electricity, artifacts, genericCoordinates };
         electricity = clamp(
           electricity + def.gain.electricity,
           0,
@@ -313,20 +378,43 @@ function completeMissions(
           0,
           MAX_ARTIFACTS
         );
+        genericCoordinates = clamp(
+          genericCoordinates +
+            randInt(
+              def.gain.genericCoordinatesMin,
+              def.gain.genericCoordinatesMax
+            ),
+          0,
+          MAX_GENERIC_COORDINATES
+        );
         // Niveau du joueur AU MOMENT de l'action = niveau dérivé de l'XP AVANT
         // d'y ajouter le gain de cette action.
         const levelDuringAction = levelInfo(xp).level;
         xp = Math.max(0, xp + def.gain.xp);
         const levelAfterAction = levelInfo(xp).level;
 
-        // Recherche : débloque la PROCHAINE adresse du pool non encore possédée.
+        // Compteurs utilisés par les conditions de déblocage d'adresse :
+        // voyages (actions marquées `travel`) et complétions par action.
+        if (def.travel) travels += 1;
+        completedActions[m.actionId] = (completedActions[m.actionId] ?? 0) + 1;
+
+        // Recherche : débloque la PREMIÈRE adresse du pool non encore
+        // possédée DONT LA CONDITION EST SATISFAITE (sinon rien cette fois).
         const sub = def.subMissions.find((s) => s.id === m.subMissionId);
         const next = sub?.unlocksAddresses?.find(
-          (a) => !addresses.some((owned) => owned.id === a.id)
+          (entry) => !addresses.some((owned) => owned.id === entry.address.id)
         );
         let addressUnlocked: Address | undefined;
-        if (next) {
-          addressUnlocked = { id: next.id, name: next.name };
+        if (
+          next &&
+          conditionSatisfied(next.condition, {
+            level: levelAfterAction,
+            addresses,
+            travels,
+            completedActions,
+          })
+        ) {
+          addressUnlocked = { id: next.address.id, name: next.address.name };
           addresses.push(addressUnlocked);
         }
 
@@ -340,6 +428,7 @@ function completeMissions(
           result: {
             electricity: electricity - before.electricity,
             artifacts: artifacts - before.artifacts,
+            genericCoordinates: genericCoordinates - before.genericCoordinates,
             xp: def.gain.xp,
             ...(addressUnlocked ? { addressUnlocked } : {}),
           },
@@ -368,9 +457,12 @@ function completeMissions(
       ...stored,
       electricity,
       artifacts,
+      genericCoordinates,
       xp,
       missions: stillRunning,
       addresses,
+      travels,
+      completedActions,
       // Borne le journal aux MAX_HISTORY entrées les plus récentes.
       history: history.slice(-MAX_HISTORY),
     },
@@ -403,6 +495,7 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
     },
     electricity: stored.electricity,
     artifacts: stored.artifacts,
+    genericCoordinates: stored.genericCoordinates,
     xp: stored.xp,
     level,
     xpFloor,
@@ -585,6 +678,14 @@ export async function adminUpdate(
       patch.artifacts != null
         ? clamp(Math.floor(patch.artifacts), 0, MAX_ARTIFACTS)
         : stored.artifacts,
+    genericCoordinates:
+      patch.genericCoordinates != null
+        ? clamp(
+            Math.floor(patch.genericCoordinates),
+            0,
+            MAX_GENERIC_COORDINATES
+          )
+        : stored.genericCoordinates,
     xp: patch.xp != null ? Math.max(0, patch.xp) : stored.xp,
   };
   await store.put(JSON.stringify(updated));

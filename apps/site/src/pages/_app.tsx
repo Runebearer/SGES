@@ -9,10 +9,10 @@ function MyApp({ Component, pageProps }: AppProps) {
       <Component {...pageProps} />
       {/*
         Police « glyphes d'adresse » Stargate, auto-hébergée (fichier dans
-        /public/fonts). Déclarée ici mais appliquée nulle part : le navigateur
-        ne télécharge le .ttf que lorsqu'un élément utilise réellement
-        `font-family: 'Stargate Glyphs'` (à venir : la liste d'adresses des
-        portes des étoiles). Aucun impact sur l'affichage actuel.
+        /public/fonts). Déclarée globalement ici ; le navigateur ne télécharge
+        le .ttf que lorsqu'un élément utilise réellement
+        `font-family: 'Stargate Glyphs'` (liste des coordonnées débloquées,
+        vue Recherche du dashboard — cf. `gateGlyphsForAddress`).
       */}
       <style jsx global>{`
         @font-face {
