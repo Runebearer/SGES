@@ -104,9 +104,32 @@ export const ACTIONS: ActionDef[] = [
     ],
   },
   {
+    id: 'military_missions',
+    name: 'Mission Militaire',
+    section: 'missions',
+    // Cliquer la carte ouvre la vue dédiée « military » (au lieu du flip) :
+    // elle liste les missions militaires (MALP, Exploration...).
+    opensSection: 'military',
+    requiredLevel: 1,
+    requiredAddressStatus: null,
+    cost: { energy: 0, electricity: 0, artifacts: 0 },
+    gain: {
+      electricity: 0,
+      artifactsMin: 0,
+      artifactsMax: 0,
+      genericCoordinatesMin: 0,
+      genericCoordinatesMax: 0,
+      xp: 0,
+    },
+    durationSec: 0,
+    description:
+      "Coordonnez les opérations militaires du SGC : reconnaissance et exploration au-delà de la Porte.",
+    subMissions: [],
+  },
+  {
     id: 'malp_recon',
     name: 'Reconnaissance MALP',
-    section: 'missions',
+    section: 'military',
     requiredLevel: 1,
     requiredAddressStatus: 'Découverte',
     cost: { energy: 10, electricity: 20, artifacts: 0 },
@@ -125,9 +148,31 @@ export const ACTIONS: ActionDef[] = [
     travel: true,
   },
   {
+    id: 'exploration',
+    name: 'Exploration',
+    section: 'military',
+    requiredLevel: 1,
+    requiredAddressStatus: 'Vivable',
+    cost: { energy: 15, electricity: 25, artifacts: 0 },
+    gain: {
+      electricity: 0,
+      artifactsMin: 0,
+      artifactsMax: 0,
+      genericCoordinatesMin: 0,
+      genericCoordinatesMax: 0,
+      xp: 12,
+    },
+    durationSec: 450,
+    description:
+      "Envoyez une équipe SG au sol pour reconnaître un site validé par MALP et cartographier ses environs.",
+    subMissions: [],
+    travel: true,
+  },
+  {
+    // Astro-archéologie : masquée (section: null) au profit d'Exploration.
     id: 'planetary_archaeology',
     name: 'Astro-archéologie',
-    section: 'missions',
+    section: null,
     requiredLevel: 1,
     requiredAddressStatus: 'Vivable',
     cost: { energy: 15, electricity: 30, artifacts: 0 },

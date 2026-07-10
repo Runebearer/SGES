@@ -130,6 +130,11 @@
       "research": {
         "title": "Recherche Archéologique",
         "subtitle": "// Traduction des cartouches — coordonnées de la Porte"
+      },
+      "military": {
+        "title": "Mission Militaire",
+        "subtitle": "// Reconnaissance et exploration au-delà de la Porte",
+        "body": "Coordonnez les opérations militaires du SGC : sondes de reconnaissance et équipes d'exploration envoyées vers les mondes déjà découverts."
       }
     }
   },

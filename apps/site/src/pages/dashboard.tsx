@@ -23,7 +23,8 @@ type SectionId =
   | 'missions'
   | 'alert'
   | 'rewards'
-  | 'research';
+  | 'research'
+  | 'military';
 
 const SECTION_IDS: readonly SectionId[] = [
   'dashboard',
@@ -32,6 +33,7 @@ const SECTION_IDS: readonly SectionId[] = [
   'alert',
   'rewards',
   'research',
+  'military',
 ];
 // Onglet déduit du paramètre d'URL `?tab=...` (défaut : dashboard).
 function sectionFromQuery(tab: string | string[] | undefined): SectionId {
@@ -83,6 +85,14 @@ const ICONS: Record<SectionId, JSX.Element> = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <circle cx="11" cy="11" r="6" />
       <path d="M16 16l4 4" />
+    </svg>
+  ),
+  // Non présente dans la barre de navigation (vue atteinte via la carte
+  // « Mission Militaire »).
+  military: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 3l7 3.5v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9v-5z" />
+      <path d="M12 8v6M9 11h6" />
     </svg>
   ),
 };
@@ -577,6 +587,32 @@ function ResearchView({ onBack }: { onBack: () => void }) {
   );
 }
 
+// Vue « Mission Militaire » (atteinte via la carte du même nom sur l'onglet
+// Missions). Liste les cartes d'action de la section `military` (MALP,
+// Exploration...), avec le même comportement de carte que sgcf/missions.
+function MilitaryMissionsView({
+  onBack,
+  onOpenSection,
+}: {
+  onBack: () => void;
+  onOpenSection: (s: string) => void;
+}) {
+  const { t } = useTranslation('common');
+  return (
+    <div className="research-view">
+      <div className="research-header">
+        <button type="button" className="research-back" onClick={onBack}>
+          ← {t('dashboard.research.back')}
+        </button>
+      </div>
+      <div className="panel">
+        <p>{t('dashboard.sections.military.body')}</p>
+      </div>
+      <ActionCards section="military" onOpenSection={onOpenSection} />
+    </div>
+  );
+}
+
 // Définition d'un trophée de la galerie des récompenses. `unlocked(player)`
 // décide de sa disponibilité à partir de l'état serveur-autoritaire. La clé
 // `i18nKey` pointe vers `dashboard.sections.rewards.<i18nKey>.{title,desc,alt}`.
@@ -860,14 +896,15 @@ export default function Dashboard() {
     }
   }, [loading, user, router]);
 
-  // Rafraîchit l'état joueur (serveur-autoritaire) à l'entrée de la section
-  // « Missions » : c'est là que le joueur dépense de l'énergie, on veut donc
-  // des valeurs à jour (recharge quotidienne incluse) sans attendre un
-  // rechargement de page. refreshPlayer est hors deps (identité instable) :
-  // on ne déclenche qu'au changement de section.
+  // Rafraîchit l'état joueur (serveur-autoritaire) à l'entrée des sections où
+  // le joueur dépense de l'énergie (Missions, et sa vue « Mission Militaire »
+  // où se lancent réellement MALP/Exploration) : valeurs à jour (recharge
+  // quotidienne incluse) sans attendre un rechargement de page. refreshPlayer
+  // est hors deps (identité instable) : on ne déclenche qu'au changement de
+  // section.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (user && active === 'missions') {
+    if (user && (active === 'missions' || active === 'military')) {
       refreshPlayer();
     }
   }, [active, user]);
@@ -1118,6 +1155,13 @@ export default function Dashboard() {
 
             {active === 'research' && (
               <ResearchView onBack={() => selectSection('sgcf')} />
+            )}
+
+            {active === 'military' && (
+              <MilitaryMissionsView
+                onBack={() => selectSection('missions')}
+                onOpenSection={(s) => selectSection(s as SectionId)}
+              />
             )}
 
             {active === 'alert' && (

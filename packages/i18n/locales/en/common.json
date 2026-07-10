@@ -130,6 +130,11 @@
       "research": {
         "title": "Archaeological Research",
         "subtitle": "// Cartouche translation — Gate coordinates"
+      },
+      "military": {
+        "title": "Military Mission",
+        "subtitle": "// Reconnaissance and exploration beyond the Gate",
+        "body": "Coordinate the SGC's military operations: recon probes and exploration teams sent to already-discovered worlds."
       }
     }
   },

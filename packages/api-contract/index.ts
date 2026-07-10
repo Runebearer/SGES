@@ -142,8 +142,12 @@ export interface ActionGain {
   xp: number;
 }
 
-/** Section du dashboard où afficher la carte d'une action. */
-export type ActionSection = 'sgcf' | 'missions';
+/**
+ * Section du dashboard où afficher la carte d'une action. `military` = vue
+ * dédiée « Mission Militaire », atteinte via une carte `opensSection` sur
+ * l'onglet Missions (même mécanique que `opensSection: 'research'`).
+ */
+export type ActionSection = 'sgcf' | 'missions' | 'military';
 
 /** Coordonnée (adresse) de la Porte des étoiles, débloquée par la recherche. */
 export interface Address {
