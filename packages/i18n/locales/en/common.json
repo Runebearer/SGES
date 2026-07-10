@@ -82,7 +82,8 @@
         "cards": {
           "electricity": "Stored electricity",
           "artifacts": "Artifacts",
-          "genericCoordinates": "Coordinates"
+          "genericCoordinates": "Coordinates",
+          "verifiedGenericCoordinates": "Verified coordinates"
         }
       },
       "sgcf": {

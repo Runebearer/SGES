@@ -20,6 +20,13 @@ export const MAX_ARTIFACTS = 30;
 export const MAX_GENERIC_COORDINATES = 30;
 
 /**
+ * Nombre maximal de coordonnées génériques VÉRIFIÉES détenues. Obtenues en
+ * dépensant une coordonnée générique dans Reconnaissance MALP (75 % de
+ * réussite) ; consommées à leur tour par Exploration.
+ */
+export const MAX_VERIFIED_GENERIC_COORDINATES = 30;
+
+/**
  * Nombre maximal d'entrées d'historique conservées par joueur (les plus
  * récentes). Borne la taille du document KV ; au-delà, les plus anciennes
  * entrées sont écartées.
@@ -65,6 +72,12 @@ export interface PlayerState {
    * donc perdu) à l'usage.
    */
   genericCoordinates: number;
+  /**
+   * Coordonnées génériques VÉRIFIÉES détenues (0–MAX_VERIFIED_GENERIC_COORDINATES).
+   * Obtenues via Reconnaissance MALP (75 % de réussite, consomme une
+   * `genericCoordinates`) ; consommées à leur tour par Exploration.
+   */
+  verifiedGenericCoordinates: number;
   /** Points d'expérience cumulés (≥ 0). Gagnés via les actions. */
   xp: number;
   /**
@@ -129,6 +142,10 @@ export interface ActionCost {
   energy: number;
   electricity: number;
   artifacts: number;
+  /** Coordonnées génériques dépensées (ex. Reconnaissance MALP : 1). */
+  genericCoordinates: number;
+  /** Coordonnées génériques VÉRIFIÉES dépensées (ex. Exploration : 1). */
+  verifiedGenericCoordinates: number;
 }
 
 /** Gains d'une action (ajoutés aux ressources ; artefacts = tirage aléatoire). */
@@ -139,6 +156,14 @@ export interface ActionGain {
   /** Cartouches de coordonnées génériques gagnés (tirage aléatoire, comme les artefacts). */
   genericCoordinatesMin: number;
   genericCoordinatesMax: number;
+  /**
+   * Probabilité (0–1) qu'une coordonnée générique dépensée par cette action
+   * (cf. `ActionCost.genericCoordinates`) soit validée en coordonnée générique
+   * VÉRIFIÉE à la complétion. Ex. Reconnaissance MALP : 0.75. Absente/0 = jamais.
+   */
+  verifiedGenericCoordinatesChance: number;
+  /** Quantité de coordonnées génériques vérifiées créditée en cas de réussite (cf. `verifiedGenericCoordinatesChance`). */
+  verifiedGenericCoordinatesAmount: number;
   xp: number;
 }
 
@@ -259,6 +284,8 @@ export interface ActionResultSummary {
   artifacts: number;
   /** Cartouches de coordonnées génériques réellement gagnés (≥ 0, après plafond). */
   genericCoordinates: number;
+  /** Coordonnées génériques vérifiées réellement gagnées (≥ 0, après plafond). */
+  verifiedGenericCoordinates: number;
   /** XP réellement gagnée (≥ 0). */
   xp: number;
   /** Adresse débloquée par cette action, le cas échéant. */
@@ -312,7 +339,13 @@ export interface ActionError {
   error: string;
   /** Présents pour 402 (ressources insuffisantes). */
   cost?: ActionCost;
-  have?: { energy: number; electricity: number; artifacts: number };
+  have?: {
+    energy: number;
+    electricity: number;
+    artifacts: number;
+    genericCoordinates: number;
+    verifiedGenericCoordinates: number;
+  };
 }
 
 // === Back-office (admin) =====================================================
@@ -328,6 +361,7 @@ export interface AdminPlayerPatch {
   electricity?: number;
   artifacts?: number;
   genericCoordinates?: number;
+  verifiedGenericCoordinates?: number;
   xp?: number;
   /** Si true, réinitialise le joueur à l'état par défaut (ignore les autres champs). */
   reset?: boolean;

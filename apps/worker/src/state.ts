@@ -19,6 +19,7 @@ import {
   MAX_ELECTRICITY,
   MAX_ARTIFACTS,
   MAX_GENERIC_COORDINATES,
+  MAX_VERIFIED_GENERIC_COORDINATES,
   MAX_HISTORY,
   type PlayerState,
   type ActionCost,
@@ -60,6 +61,7 @@ interface StoredPlayer {
   electricity: number;
   artifacts: number;
   genericCoordinates: number;
+  verifiedGenericCoordinates: number;
   xp: number;
   missions: StoredMission[];
   addresses: Address[];
@@ -167,6 +169,7 @@ function defaults(today: string): StoredPlayer {
     electricity: 0,
     artifacts: 0,
     genericCoordinates: 0,
+    verifiedGenericCoordinates: 0,
     xp: 0,
     missions: [],
     addresses: [],
@@ -193,6 +196,11 @@ function parse(raw: string | null): StoredPlayer | null {
         Math.floor(num(o.genericCoordinates, 0)),
         0,
         MAX_GENERIC_COORDINATES
+      ),
+      verifiedGenericCoordinates: clamp(
+        Math.floor(num(o.verifiedGenericCoordinates, 0)),
+        0,
+        MAX_VERIFIED_GENERIC_COORDINATES
       ),
       xp: Math.max(0, num(o.xp, 0)),
       missions: Array.isArray(o.missions)
@@ -262,6 +270,10 @@ function parse(raw: string | null): StoredPlayer | null {
                     electricity: num(h.result.electricity, 0),
                     artifacts: num(h.result.artifacts, 0),
                     genericCoordinates: num(h.result.genericCoordinates, 0),
+                    verifiedGenericCoordinates: num(
+                      h.result.verifiedGenericCoordinates,
+                      0
+                    ),
                     xp: num(h.result.xp, 0),
                     ...(h.result.addressUnlocked &&
                     typeof h.result.addressUnlocked.id === 'string' &&
@@ -354,6 +366,7 @@ function completeMissions(
   let electricity = stored.electricity;
   let artifacts = stored.artifacts;
   let genericCoordinates = stored.genericCoordinates;
+  let verifiedGenericCoordinates = stored.verifiedGenericCoordinates;
   let xp = stored.xp;
   let travels = stored.travels;
   const completedActions = { ...stored.completedActions };
@@ -367,7 +380,12 @@ function completeMissions(
       if (def) {
         // Gains RÉELLEMENT crédités (différence après plafonnement) : c'est ce
         // qu'on journalise comme « résultat » de l'action.
-        const before = { electricity, artifacts, genericCoordinates };
+        const before = {
+          electricity,
+          artifacts,
+          genericCoordinates,
+          verifiedGenericCoordinates,
+        };
         electricity = clamp(
           electricity + def.gain.electricity,
           0,
@@ -387,6 +405,18 @@ function completeMissions(
           0,
           MAX_GENERIC_COORDINATES
         );
+        // Réussite probabiliste (ex. Reconnaissance MALP : 75 % de chance
+        // qu'une coordonnée générique dépensée soit validée en vérifiée).
+        if (
+          def.gain.verifiedGenericCoordinatesChance > 0 &&
+          Math.random() < def.gain.verifiedGenericCoordinatesChance
+        ) {
+          verifiedGenericCoordinates = clamp(
+            verifiedGenericCoordinates + def.gain.verifiedGenericCoordinatesAmount,
+            0,
+            MAX_VERIFIED_GENERIC_COORDINATES
+          );
+        }
         // Niveau du joueur AU MOMENT de l'action = niveau dérivé de l'XP AVANT
         // d'y ajouter le gain de cette action.
         const levelDuringAction = levelInfo(xp).level;
@@ -429,6 +459,8 @@ function completeMissions(
             electricity: electricity - before.electricity,
             artifacts: artifacts - before.artifacts,
             genericCoordinates: genericCoordinates - before.genericCoordinates,
+            verifiedGenericCoordinates:
+              verifiedGenericCoordinates - before.verifiedGenericCoordinates,
             xp: def.gain.xp,
             ...(addressUnlocked ? { addressUnlocked } : {}),
           },
@@ -458,6 +490,7 @@ function completeMissions(
       electricity,
       artifacts,
       genericCoordinates,
+      verifiedGenericCoordinates,
       xp,
       missions: stillRunning,
       addresses,
@@ -496,6 +529,7 @@ function toState(stored: StoredPlayer, env: Env): PlayerState {
     electricity: stored.electricity,
     artifacts: stored.artifacts,
     genericCoordinates: stored.genericCoordinates,
+    verifiedGenericCoordinates: stored.verifiedGenericCoordinates,
     xp: stored.xp,
     level,
     xpFloor,
@@ -586,7 +620,13 @@ export type ActionResult =
       ok: false;
       reason: 'insufficient';
       cost: ActionCost;
-      have: { energy: number; electricity: number; artifacts: number };
+      have: {
+        energy: number;
+        electricity: number;
+        artifacts: number;
+        genericCoordinates: number;
+        verifiedGenericCoordinates: number;
+      };
     };
 
 /**
@@ -618,11 +658,15 @@ export async function startAction(
     energy: stored.energy.value,
     electricity: stored.electricity,
     artifacts: stored.artifacts,
+    genericCoordinates: stored.genericCoordinates,
+    verifiedGenericCoordinates: stored.verifiedGenericCoordinates,
   };
   if (
     have.energy < def.cost.energy ||
     have.electricity < def.cost.electricity ||
-    have.artifacts < def.cost.artifacts
+    have.artifacts < def.cost.artifacts ||
+    have.genericCoordinates < def.cost.genericCoordinates ||
+    have.verifiedGenericCoordinates < def.cost.verifiedGenericCoordinates
   ) {
     return { ok: false, reason: 'insufficient', cost: def.cost, have };
   }
@@ -632,6 +676,9 @@ export async function startAction(
     energy: { value: stored.energy.value - def.cost.energy, day: today },
     electricity: stored.electricity - def.cost.electricity,
     artifacts: stored.artifacts - def.cost.artifacts,
+    genericCoordinates: stored.genericCoordinates - def.cost.genericCoordinates,
+    verifiedGenericCoordinates:
+      stored.verifiedGenericCoordinates - def.cost.verifiedGenericCoordinates,
     missions: [
       ...stored.missions,
       {
@@ -686,6 +733,14 @@ export async function adminUpdate(
             MAX_GENERIC_COORDINATES
           )
         : stored.genericCoordinates,
+    verifiedGenericCoordinates:
+      patch.verifiedGenericCoordinates != null
+        ? clamp(
+            Math.floor(patch.verifiedGenericCoordinates),
+            0,
+            MAX_VERIFIED_GENERIC_COORDINATES
+          )
+        : stored.verifiedGenericCoordinates,
     xp: patch.xp != null ? Math.max(0, patch.xp) : stored.xp,
   };
   await store.put(JSON.stringify(updated));

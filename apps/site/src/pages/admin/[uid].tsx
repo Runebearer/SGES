@@ -26,6 +26,7 @@ type FormFields = {
   electricity: string;
   artifacts: string;
   genericCoordinates: string;
+  verifiedGenericCoordinates: string;
   xp: string;
 };
 
@@ -35,6 +36,7 @@ function toForm(p: PlayerState): FormFields {
     electricity: String(p.electricity),
     artifacts: String(p.artifacts),
     genericCoordinates: String(p.genericCoordinates),
+    verifiedGenericCoordinates: String(p.verifiedGenericCoordinates),
     xp: String(p.xp),
   };
 }
@@ -96,6 +98,7 @@ export default function AdminPlayer() {
         electricity: Number(form.electricity),
         artifacts: Number(form.artifacts),
         genericCoordinates: Number(form.genericCoordinates),
+        verifiedGenericCoordinates: Number(form.verifiedGenericCoordinates),
         xp: Number(form.xp),
       };
       const next = await updatePlayer(() => user.getIdToken(), uid, patch);
@@ -189,6 +192,7 @@ export default function AdminPlayer() {
                 {field('Électricité', 'electricity', '0–100')}
                 {field('Artefacts', 'artifacts', '0–30')}
                 {field('Coordonnées', 'genericCoordinates', '0–30')}
+                {field('Coordonnées vérifiées', 'verifiedGenericCoordinates', '0–30')}
                 {field('XP', 'xp', '≥ 0')}
               </div>
               <div className="actions">

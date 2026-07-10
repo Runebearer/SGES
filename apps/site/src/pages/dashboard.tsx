@@ -1,10 +1,16 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { GetStaticProps } from 'next';
-import type { ActionDef, ActionSection, SubMission } from '@sges/api-contract';
+import type {
+  ActionCost,
+  ActionDef,
+  ActionGain,
+  ActionSection,
+  SubMission,
+} from '@sges/api-contract';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import { GRADES, isGradeUnlocked, gradeLevel } from '../lib/grades';
@@ -164,6 +170,29 @@ const LIGHTNING = (
   </svg>
 );
 
+// Éclair cerclé : symbole de l'énergie (jauge quotidienne), distinct de
+// LIGHTNING (électricité stockée).
+const ENERGY_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M13 8l-4 5h3l-1 4 4-5h-3z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+// Étoile : symbole de l'XP gagnée.
+const XP_STAR = (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.9-6.3 3.9 1.7-7-5.4-4.7 7.1-.6z" />
+  </svg>
+);
+
 // Trophée : symbole d'une récompense débloquée.
 const TROPHY = (
   <svg
@@ -239,7 +268,7 @@ function GenericCoordinatesWindow() {
   const { player } = useAuth();
   return (
     <div
-      className="artifact-window"
+      className="artifact-window artifact-window-coords"
       title={t('dashboard.sections.dashboard.cards.genericCoordinates')}
     >
       <span className="artifact-icon artifact-icon-gate" aria-hidden="true">
@@ -247,6 +276,27 @@ function GenericCoordinatesWindow() {
       </span>
       <span className="artifact-count">
         {player ? player.genericCoordinates : '—'}
+      </span>
+    </div>
+  );
+}
+
+// Petite fenêtre HUD du nombre de coordonnées génériques VÉRIFIÉES (issues de
+// Reconnaissance MALP, consommées par Exploration). Même modèle que
+// GenericCoordinatesWindow, thème vert pour la distinguer.
+function VerifiedGenericCoordinatesWindow() {
+  const { t } = useTranslation('common');
+  const { player } = useAuth();
+  return (
+    <div
+      className="artifact-window artifact-window-verified"
+      title={t('dashboard.sections.dashboard.cards.verifiedGenericCoordinates')}
+    >
+      <span className="artifact-icon artifact-icon-verified" aria-hidden="true">
+        {POINT_OF_ORIGIN}
+      </span>
+      <span className="artifact-count">
+        {player ? player.verifiedGenericCoordinates : '—'}
       </span>
     </div>
   );
@@ -265,6 +315,60 @@ function formatClock(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+type ResourceChip = { key: string; icon: ReactNode; iconClass: string; text: string };
+
+// Postes de coût d'une action à afficher (un chip par ressource non nulle).
+function costEntries(cost: ActionCost): ResourceChip[] {
+  const entries: ResourceChip[] = [];
+  if (cost.energy > 0) {
+    entries.push({ key: 'energy', icon: ENERGY_ICON, iconClass: 'submission-resource-icon-energy', text: String(cost.energy) });
+  }
+  if (cost.electricity > 0) {
+    entries.push({ key: 'electricity', icon: LIGHTNING, iconClass: 'submission-resource-icon-power', text: String(cost.electricity) });
+  }
+  if (cost.artifacts > 0) {
+    entries.push({ key: 'artifacts', icon: EYE_OF_RA, iconClass: 'submission-resource-icon-artifact', text: String(cost.artifacts) });
+  }
+  if (cost.genericCoordinates > 0) {
+    entries.push({ key: 'genericCoordinates', icon: POINT_OF_ORIGIN, iconClass: 'submission-resource-icon-coords', text: String(cost.genericCoordinates) });
+  }
+  if (cost.verifiedGenericCoordinates > 0) {
+    entries.push({ key: 'verifiedGenericCoordinates', icon: POINT_OF_ORIGIN, iconClass: 'submission-resource-icon-verified', text: String(cost.verifiedGenericCoordinates) });
+  }
+  return entries;
+}
+
+// Gain d'une plage min–max (artefacts, coordonnées) : « +N » si fixe, « +min–max » sinon.
+function rangeText(min: number, max: number): string {
+  return min === max ? `+${min}` : `+${min}–${max}`;
+}
+
+// Récompenses d'une action à afficher (un chip par ressource non nulle).
+function gainEntries(gain: ActionGain): ResourceChip[] {
+  const entries: ResourceChip[] = [];
+  if (gain.electricity > 0) {
+    entries.push({ key: 'electricity', icon: LIGHTNING, iconClass: 'submission-resource-icon-power', text: `+${gain.electricity}` });
+  }
+  if (gain.artifactsMax > 0) {
+    entries.push({ key: 'artifacts', icon: EYE_OF_RA, iconClass: 'submission-resource-icon-artifact', text: rangeText(gain.artifactsMin, gain.artifactsMax) });
+  }
+  if (gain.genericCoordinatesMax > 0) {
+    entries.push({ key: 'genericCoordinates', icon: POINT_OF_ORIGIN, iconClass: 'submission-resource-icon-coords', text: rangeText(gain.genericCoordinatesMin, gain.genericCoordinatesMax) });
+  }
+  if (gain.verifiedGenericCoordinatesChance > 0 && gain.verifiedGenericCoordinatesAmount > 0) {
+    entries.push({
+      key: 'verifiedGenericCoordinates',
+      icon: POINT_OF_ORIGIN,
+      iconClass: 'submission-resource-icon-verified',
+      text: `${Math.round(gain.verifiedGenericCoordinatesChance * 100)}%→+${gain.verifiedGenericCoordinatesAmount}`,
+    });
+  }
+  if (gain.xp > 0) {
+    entries.push({ key: 'xp', icon: XP_STAR, iconClass: 'submission-resource-icon-xp', text: `+${gain.xp}` });
+  }
+  return entries;
 }
 
 // Récap des missions en cours : une fenêtre par mission, jauge qui se remplit
@@ -352,7 +456,9 @@ function useActionLauncher(scope: ActionDef[]) {
     player != null &&
     player.energy.value >= a.cost.energy &&
     player.electricity >= a.cost.electricity &&
-    player.artifacts >= a.cost.artifacts;
+    player.artifacts >= a.cost.artifacts &&
+    player.genericCoordinates >= a.cost.genericCoordinates &&
+    player.verifiedGenericCoordinates >= a.cost.verifiedGenericCoordinates;
 
   const start = async (a: ActionDef, sub: SubMission) => {
     setBusy(a.id);
@@ -387,6 +493,8 @@ function SubMissionButton({
   const mission = missionFor(action.id);
   const running = !!mission;
   const affordable = canAfford(action);
+  const costs = costEntries(action.cost);
+  const gains = gainEntries(action.gain);
   let pct = 0;
   let remaining = 0;
   if (mission) {
@@ -399,18 +507,48 @@ function SubMissionButton({
     <li>
       <button
         type="button"
-        className="submission"
+        className={`submission${
+          affordable && !running ? ' submission-affordable' : ''
+        }`}
         disabled={busy === action.id || running || !affordable}
         onClick={() => start(action, sub)}
       >
-        <span className="submission-name">{sub.name}</span>
-        <span className="submission-state">
-          {running
-            ? formatClock(remaining)
-            : errored === action.id
-              ? t('dashboard.actions.insufficient')
-              : formatDuration(action.durationSec)}
+        <span className="submission-top">
+          <span className="submission-name">{sub.name}</span>
+          <span className="submission-state">
+            {running
+              ? formatClock(remaining)
+              : errored === action.id
+                ? t('dashboard.actions.insufficient')
+                : formatDuration(action.durationSec)}
+          </span>
         </span>
+        {(costs.length > 0 || gains.length > 0) && (
+          <span className="submission-resources">
+            <span className="submission-cost">
+              {costs.map((c) => (
+                <span key={c.key} className="submission-resource-item">
+                  <span className={`submission-resource-icon ${c.iconClass}`} aria-hidden="true">
+                    {c.icon}
+                  </span>
+                  {c.text}
+                </span>
+              ))}
+            </span>
+            {gains.length > 0 && (
+              <span className="submission-gain">
+                {gains.map((g) => (
+                  <span key={g.key} className="submission-resource-item">
+                    <span className={`submission-resource-icon ${g.iconClass}`} aria-hidden="true">
+                      {g.icon}
+                    </span>
+                    {g.text}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+        )}
       </button>
       {running && (
         <div
@@ -604,9 +742,10 @@ function MilitaryMissionsView({
         <button type="button" className="research-back" onClick={onBack}>
           ← {t('dashboard.research.back')}
         </button>
-      </div>
-      <div className="panel">
-        <p>{t('dashboard.sections.military.body')}</p>
+        <div className="research-header-stats">
+          <GenericCoordinatesWindow />
+          <VerifiedGenericCoordinatesWindow />
+        </div>
       </div>
       <ActionCards section="military" onOpenSection={onOpenSection} />
     </div>
@@ -1115,18 +1254,6 @@ export default function Dashboard() {
                       {t('dashboard.sections.dashboard.cards.artifacts')}
                     </span>
                   </div>
-                  <div className="stat">
-                    {/* Cartouches de coordonnées génériques (compteur, consommés à l'usage). */}
-                    <span className="stat-icon stat-icon-gate" aria-hidden="true">
-                      {POINT_OF_ORIGIN}
-                    </span>
-                    <span className="stat-value">
-                      {player ? player.genericCoordinates : '—'}
-                    </span>
-                    <span className="stat-label">
-                      {t('dashboard.sections.dashboard.cards.genericCoordinates')}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Récap des missions en cours, sous les ressources. */}
@@ -1135,15 +1262,10 @@ export default function Dashboard() {
             )}
 
             {active === 'sgcf' && (
-              <>
-                <div className="panel">
-                  <p>{t('dashboard.sections.sgcf.body')}</p>
-                </div>
-                <ActionCards
-                  section="sgcf"
-                  onOpenSection={(s) => selectSection(s as SectionId)}
-                />
-              </>
+              <ActionCards
+                section="sgcf"
+                onOpenSection={(s) => selectSection(s as SectionId)}
+              />
             )}
 
             {active === 'missions' && (
@@ -1504,6 +1626,28 @@ export default function Dashboard() {
           );
         }
 
+        /* Coordonnées génériques : même carte, thème bleu électrique. */
+        .dashboard-screen .artifact-window-coords {
+          border-color: rgba(77, 139, 255, 0.45);
+          background: rgba(77, 139, 255, 0.08);
+          box-shadow: 0 0 12px rgba(77, 139, 255, 0.15),
+            inset 0 0 14px rgba(77, 139, 255, 0.06);
+        }
+        .dashboard-screen .artifact-window-coords .artifact-count {
+          color: var(--electric-bright);
+        }
+
+        /* Coordonnées génériques vérifiées : même carte, thème vert. */
+        .dashboard-screen .artifact-window-verified {
+          border-color: rgba(74, 222, 128, 0.45);
+          background: rgba(74, 222, 128, 0.08);
+          box-shadow: 0 0 12px rgba(74, 222, 128, 0.15),
+            inset 0 0 14px rgba(74, 222, 128, 0.06);
+        }
+        .dashboard-screen .artifact-window-verified .artifact-count {
+          color: #4ade80;
+        }
+
         .dashboard-screen .artifact-icon {
           display: inline-flex;
           width: 18px;
@@ -1521,6 +1665,14 @@ export default function Dashboard() {
           filter: drop-shadow(0 0 5px rgba(77, 139, 255, 0.55));
         }
         .dashboard-screen .artifact-icon-gate .gate-glyph-icon {
+          font-size: 22px;
+        }
+        /* Coordonnées génériques vérifiées : même icône, vert. */
+        .dashboard-screen .artifact-icon-verified {
+          color: #4ade80;
+          filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.55));
+        }
+        .dashboard-screen .artifact-icon-verified .gate-glyph-icon {
           font-size: 22px;
         }
 
@@ -2093,9 +2245,8 @@ export default function Dashboard() {
         /* Sous-mission = bouton qui démarre l'action. */
         .dashboard-screen .submission {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
+          flex-direction: column;
+          gap: 6px;
           width: 100%;
           text-align: left;
           font-family: monospace;
@@ -2126,6 +2277,33 @@ export default function Dashboard() {
           opacity: 0.55;
         }
 
+        /* Halo : la mission est finançable (coûts couverts) et lançable.
+           filter: drop-shadow (pas box-shadow, coupé par le clip-path
+           du bouton) pour rester visible malgré les coins chanfreinés. */
+        .dashboard-screen .submission-affordable {
+          filter: drop-shadow(0 0 6px rgba(77, 139, 255, 0.75));
+          animation: submission-halo 2.2s ease-in-out infinite;
+        }
+        .dashboard-screen .submission-affordable:hover:not(:disabled) {
+          filter: drop-shadow(0 0 10px rgba(77, 139, 255, 0.9));
+        }
+        @keyframes submission-halo {
+          0%,
+          100% {
+            filter: drop-shadow(0 0 4px rgba(77, 139, 255, 0.55));
+          }
+          50% {
+            filter: drop-shadow(0 0 11px rgba(77, 139, 255, 1));
+          }
+        }
+
+        .dashboard-screen .submission-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+        }
         .dashboard-screen .submission-name {
           font-weight: 700;
         }
@@ -2134,6 +2312,66 @@ export default function Dashboard() {
           font-size: 0.7rem;
           opacity: 0.75;
           white-space: nowrap;
+        }
+
+        /* Ligne coût / gain d'une sous-mission : le gain fait face au coût. */
+        .dashboard-screen .submission-resources {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+        }
+        .dashboard-screen .submission-cost,
+        .dashboard-screen .submission-gain {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          font-size: 0.68rem;
+          opacity: 0.85;
+        }
+        .dashboard-screen .submission-gain {
+          justify-content: flex-end;
+        }
+        .dashboard-screen .submission-resource-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
+        .dashboard-screen .submission-resource-icon {
+          display: inline-flex;
+          width: 12px;
+          height: 12px;
+          color: inherit;
+        }
+        .dashboard-screen .submission-resource-icon svg {
+          width: 100%;
+          height: 100%;
+        }
+        .dashboard-screen .submission-resource-icon-energy {
+          color: #facc15;
+        }
+        .dashboard-screen .submission-resource-icon-power {
+          color: var(--electric-bright);
+        }
+        .dashboard-screen .submission-resource-icon-artifact {
+          color: #d4af37;
+        }
+        .dashboard-screen .submission-resource-icon-coords {
+          color: var(--electric-bright);
+        }
+        .dashboard-screen .submission-resource-icon-coords .gate-glyph-icon {
+          font-size: 12px;
+        }
+        .dashboard-screen .submission-resource-icon-verified {
+          color: #4ade80;
+        }
+        .dashboard-screen .submission-resource-icon-verified .gate-glyph-icon {
+          font-size: 12px;
+        }
+        .dashboard-screen .submission-resource-icon-xp {
+          color: var(--violet);
         }
 
         /* Jauge de complétion sous une sous-mission en cours. */
